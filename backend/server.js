@@ -13,6 +13,7 @@ import vitalsRoutes from "./routes/vitals.js"
 import allergiesRoutes from "./routes/allergies.js"
 import familyhistoryRoutes from "./routes/familyHistory.js"
 import medicalHistoryRoutes from "./routes/medicalHistory.js"
+import socialHistoryRoutes from "./routes/socialHistory.js";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/vitals', vitalsRoutes);
 app.use('/api/allergies', allergiesRoutes);
 app.use('/api/family-history', familyhistoryRoutes);
 app.use('/api/medical-history', medicalHistoryRoutes);
+app.use('/api/social-history', socialHistoryRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -45,7 +47,8 @@ app.get('/', (req, res) => {
     endpoints: {
       patientDemographics: "/api/patient-demographics",
       contactInformation: "/api/contact-information",
-       medicalHistory: "/api/medical-history"
+      medicalHistory: "/api/medical-history",
+      socialHistory: "/api/social-history"
     }
   });
 });
@@ -63,5 +66,3 @@ connectDB()
     console.error('Failed to connect to DB, server not started:', err);
     process.exit(1);
   });
-
-  

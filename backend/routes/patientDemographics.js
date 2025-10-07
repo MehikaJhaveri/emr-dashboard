@@ -174,6 +174,9 @@ router.post("/", upload.single("photo"), async (req, res) => {
       time: `${hours}:${minutes}` // 24-hour HH:MM format
     };
 
+    // Initialize empty social_history so it appears on creation
+    patientData.social_history = {};
+
     // Create new patient
     const newPatient = new Patient(patientData);
     await newPatient.save();

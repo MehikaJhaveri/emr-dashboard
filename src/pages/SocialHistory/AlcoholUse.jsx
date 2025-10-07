@@ -4,6 +4,8 @@ import "./AlcoholUse.css";
 
 const AlcoholUse = ({ onClose }) => {
   const { updateAlcoholUse } = useSocialHistory();
+  const [isSaving, setIsSaving] = useState(false);
+  
   const [formData, setFormData] = useState({
     status: "Moderate Drinker",
     weeklyConsumption: "",
@@ -17,29 +19,69 @@ const AlcoholUse = ({ onClose }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    const alcoholData = {
-      status: formData.status,
-      weeklyConsumption: formData.weeklyConsumption,
-      alcoholType: formData.alcoholType,
-      period: formData.period,
-      notes: formData.notes
-    };
-    
-    updateAlcoholUse(alcoholData);
-    console.log("Alcohol data saved:", alcoholData);
-    alert('Alcohol information saved successfully!');
+  const handleSave = async () => {
+    // Get patientId from localStorage
+    const patientId = localStorage.getItem("currentPatientId");
+
+    if (!patientId) {
+      alert("No patient selected. Please complete Patient Demographics first.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const alcoholData = {
+        status: formData.status,
+        weeklyConsumption: formData.weeklyConsumption,
+        alcoholType: formData.alcoholType,
+        period: formData.period,
+        notes: formData.notes
+      };
+
+      console.log('Sending alcohol data:', alcoholData);
+
+      // Save to backend using patientId
+      const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/alcohol`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(alcoholData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to save alcohol data");
+      }
+
+      // Update context
+      updateAlcoholUse(alcoholData);
+      
+      console.log("Alcohol data saved:", alcoholData);
+      alert('Alcohol information saved successfully!');
+      
+      // Close the panel after successful save
+      if (onClose) {
+        onClose();
+      }
+
+    } catch (error) {
+      console.error("Error saving alcohol data:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => {
-    console.log("Close button clicked!"); // Debug log
-    console.log("onClose prop:", onClose); // Check if onClose exists
+    console.log("Close button clicked!");
+    console.log("onClose prop:", onClose);
     
     if (onClose) {
-      console.log("Calling onClose function"); // Debug log
+      console.log("Calling onClose function");
       onClose();
     } else {
-      console.log("No onClose function provided!"); // Debug log
+      console.log("No onClose function provided!");
       alert("Close function not provided by parent component");
     }
   };
@@ -112,8 +154,12 @@ const AlcoholUse = ({ onClose }) => {
       </div>
 
       <div className="alcohol-buttons">
-        <button className="save-btn" onClick={handleSave}>
-          Save Alcohol Data
+        <button 
+          className="save-btn" 
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Alcohol Data"}
         </button>
       </div>
     </div>

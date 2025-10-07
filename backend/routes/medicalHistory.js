@@ -2,6 +2,8 @@ import express from 'express';
 import Patient from '../models/patients.js';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
+import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
@@ -13,7 +15,11 @@ const router = express.Router();
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/medical-reports/');
+    const uploadDir = path.join(__dirname, '../uploads/medical-reports');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -223,9 +229,9 @@ router.post('/lab-reports', upload.single('file'), async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    // Store file information
+    // Store file information (use placeholder ObjectId to satisfy schema)
     const labReport = {
-      file_id: req.file.filename, // Store filename as ID
+      file_id: new mongoose.Types.ObjectId(),
       comments: comments || ''
     };
 
@@ -234,7 +240,14 @@ router.post('/lab-reports', upload.single('file'), async (req, res) => {
 
     res.status(200).json({
       message: 'Lab report uploaded successfully',
-      data: labReport
+      data: labReport,
+      file: {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        path: req.file.path,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      }
     });
   } catch (error) {
     console.error('Error saving lab report:', error);
@@ -264,9 +277,9 @@ router.post('/diagnostic-reports', upload.single('file'), async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    // Store file information
+    // Store file information (use placeholder ObjectId to satisfy schema)
     const diagnosticReport = {
-      file_id: req.file.filename, // Store filename as ID
+      file_id: new mongoose.Types.ObjectId(),
       comments: comments || ''
     };
 
@@ -275,7 +288,14 @@ router.post('/diagnostic-reports', upload.single('file'), async (req, res) => {
 
     res.status(200).json({
       message: 'Diagnostic report uploaded successfully',
-      data: diagnosticReport
+      data: diagnosticReport,
+      file: {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        path: req.file.path,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      }
     });
   } catch (error) {
     console.error('Error saving diagnostic report:', error);
