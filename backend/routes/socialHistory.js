@@ -715,4 +715,870 @@ router.delete('/:patientId/physical-activity', async (req, res) => {
   }
 });
 
+
+// POST - Create/Update tobacco smoking data for a specific patient
+router.post('/:patientId/tobacco-smoking', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { status, dailyConsumption, duration, durationUnit, quitDate, notes } = req.body;
+
+    // Validate required fields
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current status is required'
+      });
+    }
+
+    // Prepare update data
+    const tobaccoSmokingData = {
+      current_status: status,
+      average_daily_consumption: dailyConsumption ? parseInt(dailyConsumption) : undefined,
+      duration_of_use: duration || '',
+      duration_unit: durationUnit || 'years',
+      quit_date: quitDate || '',
+      notes: notes || ''
+    };
+
+    // Update patient's tobacco smoking information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.tobacco_smoking': tobaccoSmokingData },
+      { new: true, runValidators: true }
+    ).select('social_history.tobacco_smoking');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tobacco smoking information saved successfully',
+      data: updatedPatient.social_history?.tobacco_smoking
+    });
+  } catch (error) {
+    console.error('Error saving tobacco smoking data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving tobacco smoking data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve tobacco smoking data for a specific patient
+router.get('/:patientId/tobacco-smoking', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.tobacco_smoking');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.tobacco_smoking || {}
+    });
+  } catch (error) {
+    console.error('Error fetching tobacco smoking data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching tobacco smoking data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update tobacco smoking data for a specific patient
+router.put('/:patientId/tobacco-smoking', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { status, dailyConsumption, duration, durationUnit, quitDate, notes } = req.body;
+
+    // Validate required fields
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current status is required'
+      });
+    }
+
+    // Prepare update data
+    const tobaccoSmokingData = {
+      current_status: status,
+      average_daily_consumption: dailyConsumption ? parseInt(dailyConsumption) : undefined,
+      duration_of_use: duration || '',
+      duration_unit: durationUnit || 'years',
+      quit_date: quitDate || '',
+      notes: notes || ''
+    };
+
+    // Update patient's tobacco smoking information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.tobacco_smoking': tobaccoSmokingData },
+      { new: true, runValidators: true }
+    ).select('social_history.tobacco_smoking');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tobacco smoking information updated successfully',
+      data: updatedPatient.social_history?.tobacco_smoking
+    });
+  } catch (error) {
+    console.error('Error updating tobacco smoking data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating tobacco smoking data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove tobacco smoking data for a specific patient
+router.delete('/:patientId/tobacco-smoking', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.tobacco_smoking': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tobacco smoking information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting tobacco smoking data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting tobacco smoking data',
+      error: error.message
+    });
+  }
+});
+
+// POST - Create/Update tobacco consumption data for a specific patient
+router.post('/:patientId/tobacco-consumption', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { status, dailyConsumption, duration, durationUnit, quitDate, notes } = req.body;
+
+    // Validate required fields
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current status is required'
+      });
+    }
+
+    // Prepare update data - only include fields with valid values
+    const tobaccoConsumptionData = {
+      current_status: status
+    };
+
+    // Only add fields if they have valid values
+    if (dailyConsumption && dailyConsumption !== '') {
+      tobaccoConsumptionData.average_daily_consumption = parseInt(dailyConsumption);
+    }
+
+    if (duration && duration !== '') {
+      tobaccoConsumptionData.duration_of_use = duration.toString();
+    }
+
+    if (durationUnit && durationUnit !== '') {
+      tobaccoConsumptionData.duration_unit = durationUnit;
+    }
+
+    // Only add quit_date if it's not empty (empty string fails regex validation)
+    if (quitDate && quitDate.trim() !== '') {
+      tobaccoConsumptionData.quit_date = quitDate;
+    }
+
+    if (notes && notes !== '') {
+      tobaccoConsumptionData.notes = notes;
+    }
+
+    console.log('Processed tobacco consumption data:', tobaccoConsumptionData);
+
+    // Update patient's tobacco consumption information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.tobacco_consumption': tobaccoConsumptionData },
+      { new: true, runValidators: true }
+    ).select('social_history.tobacco_consumption');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tobacco consumption information saved successfully',
+      data: updatedPatient.social_history?.tobacco_consumption
+    });
+  } catch (error) {
+    console.error('Error saving tobacco consumption data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving tobacco consumption data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve tobacco consumption data for a specific patient
+router.get('/:patientId/tobacco-consumption', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.tobacco_consumption');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.tobacco_consumption || {}
+    });
+  } catch (error) {
+    console.error('Error fetching tobacco consumption data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching tobacco consumption data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update tobacco consumption data for a specific patient
+router.put('/:patientId/tobacco-consumption', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { status, dailyConsumption, duration, durationUnit, quitDate, notes } = req.body;
+
+    // Validate required fields
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current status is required'
+      });
+    }
+
+    // Prepare update data - only include fields with valid values
+    const tobaccoConsumptionData = {
+      current_status: status
+    };
+
+    // Only add fields if they have valid values
+    if (dailyConsumption && dailyConsumption !== '') {
+      tobaccoConsumptionData.average_daily_consumption = parseInt(dailyConsumption);
+    }
+
+    if (duration && duration !== '') {
+      tobaccoConsumptionData.duration_of_use = duration.toString();
+    }
+
+    if (durationUnit && durationUnit !== '') {
+      tobaccoConsumptionData.duration_unit = durationUnit;
+    }
+
+    // Only add quit_date if it's not empty (empty string fails regex validation)
+    if (quitDate && quitDate.trim() !== '') {
+      tobaccoConsumptionData.quit_date = quitDate;
+    }
+
+    if (notes && notes !== '') {
+      tobaccoConsumptionData.notes = notes;
+    }
+
+    console.log('Processed tobacco consumption data:', tobaccoConsumptionData);
+
+    // Update patient's tobacco consumption information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.tobacco_consumption': tobaccoConsumptionData },
+      { new: true, runValidators: true }
+    ).select('social_history.tobacco_consumption');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tobacco consumption information updated successfully',
+      data: updatedPatient.social_history?.tobacco_consumption
+    });
+  } catch (error) {
+    console.error('Error updating tobacco consumption data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating tobacco consumption data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove tobacco consumption data for a specific patient
+router.delete('/:patientId/tobacco-consumption', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.tobacco_consumption': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Tobacco consumption information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting tobacco consumption data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting tobacco consumption data',
+      error: error.message
+    });
+  }
+});
+
+// POST - Create/Update exposure to violence data for a specific patient
+router.post('/:patientId/exposure-to-violence', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { typeOfViolence, lastExposure, supportReceived, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const exposureToViolenceData = {};
+
+    if (typeOfViolence !== undefined) {
+      exposureToViolenceData.type_of_violence = typeOfViolence || '';
+    }
+
+    // Convert date from YYYY-MM-DD to MM-DD-YYYY format
+    if (lastExposure && lastExposure.trim() !== '') {
+      // Check if date is in YYYY-MM-DD format
+      const dateMatch = lastExposure.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateMatch) {
+        // Convert to MM-DD-YYYY
+        const [, year, month, day] = dateMatch;
+        exposureToViolenceData.date_of_last_exposure = `${month}-${day}-${year}`;
+      } else {
+        // If already in MM-DD-YYYY format, use as is
+        exposureToViolenceData.date_of_last_exposure = lastExposure;
+      }
+    }
+
+    if (supportReceived !== undefined) {
+      exposureToViolenceData.support_or_intervention_received = supportReceived || '';
+    }
+
+    if (notes !== undefined) {
+      exposureToViolenceData.notes = notes || '';
+    }
+
+    console.log('Processed exposure to violence data:', exposureToViolenceData);
+
+    // Update patient's exposure to violence information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.exposure_to_violence': exposureToViolenceData },
+      { new: true, runValidators: true }
+    ).select('social_history.exposure_to_violence');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Exposure to violence information saved successfully',
+      data: updatedPatient.social_history?.exposure_to_violence
+    });
+  } catch (error) {
+    console.error('Error saving exposure to violence data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving exposure to violence data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve exposure to violence data for a specific patient
+router.get('/:patientId/exposure-to-violence', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.exposure_to_violence');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    // Convert date from MM-DD-YYYY to YYYY-MM-DD for the date input
+    let responseData = patient.social_history?.exposure_to_violence || {};
+    if (responseData.date_of_last_exposure) {
+      const dateMatch = responseData.date_of_last_exposure.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+      if (dateMatch) {
+        const [, month, day, year] = dateMatch;
+        responseData = {
+          ...responseData,
+          date_of_last_exposure: `${year}-${month}-${day}`
+        };
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: responseData
+    });
+  } catch (error) {
+    console.error('Error fetching exposure to violence data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching exposure to violence data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update exposure to violence data for a specific patient
+router.put('/:patientId/exposure-to-violence', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { typeOfViolence, lastExposure, supportReceived, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const exposureToViolenceData = {};
+
+    if (typeOfViolence !== undefined) {
+      exposureToViolenceData.type_of_violence = typeOfViolence || '';
+    }
+
+    // Convert date from YYYY-MM-DD to MM-DD-YYYY format
+    if (lastExposure && lastExposure.trim() !== '') {
+      // Check if date is in YYYY-MM-DD format
+      const dateMatch = lastExposure.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateMatch) {
+        // Convert to MM-DD-YYYY
+        const [, year, month, day] = dateMatch;
+        exposureToViolenceData.date_of_last_exposure = `${month}-${day}-${year}`;
+      } else {
+        // If already in MM-DD-YYYY format, use as is
+        exposureToViolenceData.date_of_last_exposure = lastExposure;
+      }
+    }
+
+    if (supportReceived !== undefined) {
+      exposureToViolenceData.support_or_intervention_received = supportReceived || '';
+    }
+
+    if (notes !== undefined) {
+      exposureToViolenceData.notes = notes || '';
+    }
+
+    console.log('Processed exposure to violence data:', exposureToViolenceData);
+
+    // Update patient's exposure to violence information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.exposure_to_violence': exposureToViolenceData },
+      { new: true, runValidators: true }
+    ).select('social_history.exposure_to_violence');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Exposure to violence information updated successfully',
+      data: updatedPatient.social_history?.exposure_to_violence
+    });
+  } catch (error) {
+    console.error('Error updating exposure to violence data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating exposure to violence data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove exposure to violence data for a specific patient
+router.delete('/:patientId/exposure-to-violence', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.exposure_to_violence': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Exposure to violence information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting exposure to violence data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting exposure to violence data',
+      error: error.message
+    });
+  }
+});
+
+// POST - Create/Update education data for a specific patient
+router.post('/:patientId/education', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { highestEducation, notes } = req.body;
+
+    // Validate required fields
+    if (!highestEducation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Highest level of education is required'
+      });
+    }
+
+    // Prepare update data with correct nested path
+    const educationData = {
+      highest_level_of_education: highestEducation,
+      notes: notes || ''
+    };
+
+    // Update patient's education information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.education': educationData },
+      { new: true, runValidators: true }
+    ).select('social_history.education');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Education information saved successfully',
+      data: updatedPatient.social_history?.education
+    });
+  } catch (error) {
+    console.error('Error saving education data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving education data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve education data for a specific patient
+router.get('/:patientId/education', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.education');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.education || {}
+    });
+  } catch (error) {
+    console.error('Error fetching education data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching education data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update education data for a specific patient
+router.put('/:patientId/education', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { highestEducation, notes } = req.body;
+
+    // Validate required fields
+    if (!highestEducation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Highest level of education is required'
+      });
+    }
+
+    // Prepare update data with correct nested path
+    const educationData = {
+      highest_level_of_education: highestEducation,
+      notes: notes || ''
+    };
+
+    // Update patient's education information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.education': educationData },
+      { new: true, runValidators: true }
+    ).select('social_history.education');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Education information updated successfully',
+      data: updatedPatient.social_history?.education
+    });
+  } catch (error) {
+    console.error('Error updating education data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating education data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove education data for a specific patient
+router.delete('/:patientId/education', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.education': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Education information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting education data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting education data',
+      error: error.message
+    });
+  }
+});
+
 export default router;
