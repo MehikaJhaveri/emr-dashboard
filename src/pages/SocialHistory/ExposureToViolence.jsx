@@ -1,67 +1,155 @@
-import React, { useState } from "react";
-import { useSocialHistory } from "./SocialHistoryContext";
+import React, { useState, useEffect } from "react";
 import "./ExposureToViolence.css";
 
 const ExposureToViolence = ({ onClose }) => {
-  const { updateExposureToViolence, socialHistoryData } = useSocialHistory();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [formData, setFormData] = useState({
-    typeOfViolence: socialHistoryData?.exposureToViolence?.typeOfViolence || "",
-    lastExposure: socialHistoryData?.exposureToViolence?.lastExposure || "",
-    supportReceived: socialHistoryData?.exposureToViolence?.supportReceived || "",
-    notes: socialHistoryData?.exposureToViolence?.notes || ""
+    typeOfViolence: "",
+    lastExposure: "",
+    supportReceived: "",
+    notes: ""
   });
+
+  // Fetch existing exposure to violence data on component mount
+  useEffect(() => {
+    const fetchExposureToViolenceData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      
+      if (!patientId) {
+        console.log("No patient ID found in localStorage");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        console.log("Fetching exposure to violence data for patient:", patientId);
+        const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/exposure-to-violence`);
+        
+        console.log("Response status:", response.status);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("Response is not JSON. Content-Type:", contentType);
+          const text = await response.text();
+          console.error("Response body:", text);
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await response.json();
+        console.log("Loaded exposure to violence data:", result);
+
+        if (response.ok && result.success && result.data) {
+          setFormData({
+            typeOfViolence: result.data.type_of_violence || "",
+            lastExposure: result.data.date_of_last_exposure || "",
+            supportReceived: result.data.support_or_intervention_received || "",
+            notes: result.data.notes || ""
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching exposure to violence data:", error);
+        alert("Error loading exposure to violence data. Please check console for details.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExposureToViolenceData();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleClose = () => {
-    console.log("Close button clicked!"); // Debug log
-    console.log("onClose prop:", onClose); // Check if onClose exists
-    
-    if (onClose) {
-      console.log("Calling onClose function"); // Debug log
-      onClose();
-    } else {
-      console.log("No onClose function provided!"); // Debug log
-      alert("Close function not provided by parent component");
+  const handleSave = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
+
+    if (!patientId) {
+      alert("No patient selected. Please complete Patient Demographics first.");
+      return;
     }
-  };
 
-
-  const handleSave = () => {
     if (!formData.typeOfViolence) {
       alert('Please select a type of violence');
       return;
     }
 
-    const violenceData = {
-      typeOfViolence: formData.typeOfViolence,
-      lastExposure: formData.lastExposure,
-      supportReceived: formData.supportReceived,
-      notes: formData.notes
-    };
-    
-    updateExposureToViolence(violenceData);
-    console.log("Violence exposure data saved:", violenceData);
-    alert('Violence exposure information saved successfully!');
+    setIsSaving(true);
+
+    try {
+      const violenceData = {
+        typeOfViolence: formData.typeOfViolence,
+        lastExposure: formData.lastExposure,
+        supportReceived: formData.supportReceived,
+        notes: formData.notes
+      };
+
+      console.log('Sending exposure to violence data:', violenceData);
+      console.log('To URL:', `http://localhost:5000/api/social-history/${patientId}/exposure-to-violence`);
+
+      const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/exposure-to-violence`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(violenceData),
+      });
+
+      console.log("Response status:", response.status);
+      
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Response is not JSON. Content-Type:", contentType);
+        const text = await response.text();
+        console.error("Response body:", text);
+        alert("Server error: Received invalid response. Check console for details.");
+        return;
+      }
+
+      const result = await response.json();
+      console.log("Save response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to save exposure to violence data");
+      }
+
+      console.log("Exposure to violence data saved successfully:", result.data);
+      alert('Violence exposure information saved successfully!');
+      
+      // Close the panel after successful save
+      if (onClose) {
+        onClose();
+      }
+
+    } catch (error) {
+      console.error("Error saving exposure to violence data:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleCancel = () => {
-    setFormData({
-      typeOfViolence: socialHistoryData?.exposureToViolence?.typeOfViolence || "",
-      lastExposure: socialHistoryData?.exposureToViolence?.lastExposure || "",
-      supportReceived: socialHistoryData?.exposureToViolence?.supportReceived || "",
-      notes: socialHistoryData?.exposureToViolence?.notes || ""
-    });
-  };
+  if (isLoading) {
+    return (
+      <div className="violence-panel">
+        <div className="panel-header">
+          <h3>Exposure to Violence</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="violence-panel">
       <div className="panel-header">
         <h3>Exposure to Violence</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
+        <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">
@@ -70,14 +158,21 @@ const ExposureToViolence = ({ onClose }) => {
           name="typeOfViolence"
           value={formData.typeOfViolence}
           onChange={handleChange}
+          disabled={isSaving}
           required
         >
           <option value="">Select</option>
-          <option>Domestic violence</option>
-          <option>Community violence</option>
-          <option>Sexual violence</option>
-          <option>Emotional abuse</option>
-          <option>Other</option>
+          <option value="Physical">Physical</option>
+          <option value="Sexual violence">Sexual violence</option>
+          <option value="Emotional abuse">Emotional abuse</option>
+          <option value="Financial">Financial</option>
+          <option value="Domestic violence">Domestic violence</option>
+          <option value="Child Abuse">Child Abuse</option>
+          <option value="Elder Abuse">Elder Abuse</option>
+          <option value="Bullying">Bullying</option>
+          <option value="Workplace violence">Workplace violence</option>
+          <option value="Community violence">Community violence</option>
+          <option value="Other">Other</option>
         </select>
       </div>
 
@@ -88,6 +183,7 @@ const ExposureToViolence = ({ onClose }) => {
           name="lastExposure"
           value={formData.lastExposure}
           onChange={handleChange}
+          disabled={isSaving}
         />
       </div>
 
@@ -99,6 +195,7 @@ const ExposureToViolence = ({ onClose }) => {
           value={formData.supportReceived}
           onChange={handleChange}
           rows={3}
+          disabled={isSaving}
         />
       </div>
 
@@ -110,14 +207,17 @@ const ExposureToViolence = ({ onClose }) => {
           onChange={handleChange}
           placeholder="Additional details about the exposure..."
           rows={3}
+          disabled={isSaving}
         />
       </div>
 
       <div className="violence-buttons">
-        <button className="save-btn" onClick={handleSave}>
-          Save Violence Data
-        </button>
-        <button className="cancel-btn" onClick={handleCancel}>
+        <button 
+          className="save-btn" 
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Violence Data"}
         </button>
       </div>
     </div>
