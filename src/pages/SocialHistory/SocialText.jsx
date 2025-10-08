@@ -1,12 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSocialHistory } from "./SocialHistoryContext";
 import "./SocialText.css";
 
 const SocialText = ({ onClose }) => {
   const { updateSocialText } = useSocialHistory();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [formData, setFormData] = useState({
     notes: "",
   });
+
+  // Load existing data when component mounts
+  useEffect(() => {
+    const loadSocialTextData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      
+      if (!patientId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/social-history/${patientId}/social-text`
+        );
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            setFormData({
+              notes: result.data.notes || ""
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading social history text:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSocialTextData();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -14,34 +50,90 @@ const SocialText = ({ onClose }) => {
   };
 
   const handleClose = () => {
-    console.log("Close button clicked!"); // Debug log
-    console.log("onClose prop:", onClose); // Check if onClose exists
+    console.log("Close button clicked!");
+    console.log("onClose prop:", onClose);
     
     if (onClose) {
-      console.log("Calling onClose function"); // Debug log
+      console.log("Calling onClose function");
       onClose();
     } else {
-      console.log("No onClose function provided!"); // Debug log
+      console.log("No onClose function provided!");
       alert("Close function not provided by parent component");
     }
   };
 
+  const handleSave = async () => {
+    // Get patientId from localStorage
+    const patientId = localStorage.getItem("currentPatientId");
 
-  const handleSave = () => {
-    const socialTextData = {
-      notes: formData.notes
-    };
-    updateSocialText(socialTextData);
-    console.log("Social text saved:", socialTextData);
-    alert('Social History notes saved successfully!');
-    onClose(); // close panel after saving
+    if (!patientId) {
+      alert("No patient selected. Please complete Patient Demographics first.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const socialTextData = {
+        notes: formData.notes
+      };
+
+      console.log('Sending social history text:', socialTextData);
+
+      // Save to backend using patientId
+      const response = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/social-text`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(socialTextData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to save social history text");
+      }
+
+      // Update context if function exists
+      if (updateSocialText) {
+        updateSocialText(socialTextData);
+      }
+      
+      console.log("Social history text saved:", socialTextData);
+      alert('Social History notes saved successfully!');
+      
+      // Close the panel after successful save
+      if (onClose) {
+        onClose();
+      }
+
+    } catch (error) {
+      console.error("Error saving social history text:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="social-text-panel slide-in">
+        <div className="panel-header">
+          <h3>Social History (Free Text)</h3>
+          <button className="close-btn" onClick={handleClose}>×</button>
+        </div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="social-text-panel slide-in">
       <div className="panel-header">
         <h3>Social History (Free Text)</h3>
-        <button className="close-btn" onClick={onClose}>×</button>
+        <button className="close-btn" onClick={handleClose}>×</button>
       </div>
 
       <div className="form-group">
@@ -52,12 +144,17 @@ const SocialText = ({ onClose }) => {
           onChange={handleChange}
           placeholder="Enter any additional social history notes..."
           rows={5}
+          disabled={isSaving}
         />
       </div>
 
       <div className="social-text-buttons">
-        <button className="save-btn" onClick={handleSave}>
-          Save Notes
+        <button 
+          className="save-btn" 
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Notes"}
         </button>
       </div>
     </div>
