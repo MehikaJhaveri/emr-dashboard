@@ -175,7 +175,24 @@ router.post("/", upload.single("photo"), async (req, res) => {
     };
 
     // Initialize empty social_history so it appears on creation
-    patientData.social_history = {};
+    // Initialize social_history with proper structure
+    patientData.social_history = {
+      tobacco_smoking: {},
+      tobacco_consumption: {},
+      alcohol_use: {},
+      social_history_free_text: {
+        notes: ""
+      },
+      financial_resources: {},
+      education: {},
+      physical_activity: {},
+      stress: {},
+      social_isolation_connection: {},
+      exposure_to_violence: {},
+      gender_identity: {},
+      sexual_orientation: {},
+      nutrients_history: {}
+    };
 
     // Create new patient
     const newPatient = new Patient(patientData);
