@@ -1,62 +1,150 @@
-import React, { useState } from "react";
-import { useSocialHistory } from "./SocialHistoryContext";
+import React, { useState, useEffect } from "react";
 import "./Stress.css";
 
 const Stress = ({ onClose }) => {
-  const { updateStress, socialHistoryData } = useSocialHistory();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [formData, setFormData] = useState({
-    stressLevel: socialHistoryData?.stress?.stressLevel || "Moderate",
-    stressors: socialHistoryData?.stress?.stressors || "",
-    coping: socialHistoryData?.stress?.coping || "",
-    notes: socialHistoryData?.stress?.notes || ""
+    stressLevel: "Moderate",
+    stressors: "",
+    coping: "",
+    notes: ""
   });
+
+  // Fetch existing stress data on component mount
+  useEffect(() => {
+    const fetchStressData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      
+      if (!patientId) {
+        console.log("No patient ID found in localStorage");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        console.log("Fetching stress data for patient:", patientId);
+        const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/stress`);
+        
+        console.log("Response status:", response.status);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("Response is not JSON. Content-Type:", contentType);
+          const text = await response.text();
+          console.error("Response body:", text);
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await response.json();
+        console.log("Loaded stress data:", result);
+
+        if (response.ok && result.success && result.data) {
+          setFormData({
+            stressLevel: result.data.perceived_stress_level || "Moderate",
+            stressors: result.data.major_stressors || "",
+            coping: result.data.coping_mechanisms || "",
+            notes: result.data.notes || ""
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching stress data:", error);
+        alert("Error loading stress data. Please check console for details.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStressData();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleClose = () => {
-    console.log("Close button clicked!"); // Debug log
-    console.log("onClose prop:", onClose); // Check if onClose exists
-    
-    if (onClose) {
-      console.log("Calling onClose function"); // Debug log
-      onClose();
-    } else {
-      console.log("No onClose function provided!"); // Debug log
-      alert("Close function not provided by parent component");
+  const handleSave = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
+
+    if (!patientId) {
+      alert("No patient selected. Please complete Patient Demographics first.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const stressData = {
+        stressLevel: formData.stressLevel,
+        stressors: formData.stressors,
+        coping: formData.coping,
+        notes: formData.notes
+      };
+
+      console.log('Sending stress data:', stressData);
+      console.log('To URL:', `http://localhost:5000/api/social-history/${patientId}/stress`);
+
+      const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/stress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stressData),
+      });
+
+      console.log("Response status:", response.status);
+      
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Response is not JSON. Content-Type:", contentType);
+        const text = await response.text();
+        console.error("Response body:", text);
+        alert("Server error: Received invalid response. Check console for details.");
+        return;
+      }
+
+      const result = await response.json();
+      console.log("Save response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to save stress data");
+      }
+
+      console.log("Stress data saved successfully:", result.data);
+      alert('Stress information saved successfully!');
+      
+      // Close the panel after successful save
+      if (onClose) {
+        onClose();
+      }
+
+    } catch (error) {
+      console.error("Error saving stress data:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-
-  const handleSave = () => {
-    const stressData = {
-      stressLevel: formData.stressLevel,
-      stressors: formData.stressors,
-      coping: formData.coping,
-      notes: formData.notes
-    };
-    
-    updateStress(stressData);
-    console.log("Stress data saved:", stressData);
-    alert('Stress information saved successfully!');
-  };
-
-  const handleCancel = () => {
-    setFormData({
-      stressLevel: socialHistoryData?.stress?.stressLevel || "Moderate",
-      stressors: socialHistoryData?.stress?.stressors || "",
-      coping: socialHistoryData?.stress?.coping || "",
-      notes: socialHistoryData?.stress?.notes || ""
-    });
-  };
+  if (isLoading) {
+    return (
+      <div className="stress-panel">
+        <div className="panel-header">
+          <h3>Stress</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="stress-panel">
       <div className="panel-header">
         <h3>Stress</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
+        <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">
@@ -65,10 +153,13 @@ const Stress = ({ onClose }) => {
           name="stressLevel"
           value={formData.stressLevel}
           onChange={handleChange}
+          disabled={isSaving}
         >
-          <option>Low</option>
-          <option>Moderate</option>
-          <option>High</option>
+          <option value="None">None</option>
+          <option value="Low">Low</option>
+          <option value="Moderate">Moderate</option>
+          <option value="High">High</option>
+          <option value="Very High">Very High</option>
         </select>
       </div>
 
@@ -80,6 +171,7 @@ const Stress = ({ onClose }) => {
           value={formData.stressors}
           onChange={handleChange}
           rows={3}
+          disabled={isSaving}
         />
       </div>
 
@@ -91,6 +183,7 @@ const Stress = ({ onClose }) => {
           value={formData.coping}
           onChange={handleChange}
           rows={3}
+          disabled={isSaving}
         />
       </div>
 
@@ -102,12 +195,17 @@ const Stress = ({ onClose }) => {
           onChange={handleChange}
           placeholder="Additional notes about stress..."
           rows={3}
+          disabled={isSaving}
         />
       </div>
 
       <div className="stress-buttons">
-        <button className="save-btn" onClick={handleSave}>
-          Save Stress Data
+        <button 
+          className="save-btn" 
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Stress Data"}
         </button>
       </div>
     </div>
