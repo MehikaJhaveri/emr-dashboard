@@ -1,14 +1,48 @@
-import React, { useState } from "react";
-import { useSocialHistory } from "./SocialHistoryContext";
+import React, { useState, useEffect } from "react";
 import "./NutrientsHistory.css";
 
 const NutrientsHistory = ({ onClose }) => {
-  const { updateNutrientsHistory, socialHistoryData } = useSocialHistory();
   const [formData, setFormData] = useState({
-    dietaryPreferences: socialHistoryData?.nutrientsHistory?.dietaryPreferences || "",
-    supplementUsage: socialHistoryData?.nutrientsHistory?.supplementUsage || "",
-    notes: socialHistoryData?.nutrientsHistory?.notes || ""
+    dietaryPreferences: "",
+    supplementUsage: "",
+    notes: ""
   });
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch existing data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      
+      if (!patientId) {
+        console.error('No patientId in localStorage');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/social-history/${patientId}/nutrients-history`
+        );
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setFormData({
+            dietaryPreferences: data.data.dietary_preferences || "",
+            supplementUsage: data.data.supplement_usage || "",
+            notes: data.data.notes || ""
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching nutrients history data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -16,38 +50,113 @@ const NutrientsHistory = ({ onClose }) => {
   };
 
   const handleClose = () => {
-    console.log("Close button clicked!"); // Debug log
-    console.log("onClose prop:", onClose); // Check if onClose exists
-    
+    console.log("Close button clicked!");
     if (onClose) {
-      console.log("Calling onClose function"); // Debug log
       onClose();
     } else {
-      console.log("No onClose function provided!"); // Debug log
+      console.log("No onClose function provided!");
       alert("Close function not provided by parent component");
     }
   };
 
+  const handleSave = async () => {
+    // Get patientId from localStorage
+    const patientId = localStorage.getItem("currentPatientId");
 
-  const handleSave = () => {
-    const nutrientsData = {
-      dietaryPreferences: formData.dietaryPreferences,
-      supplementUsage: formData.supplementUsage,
-      notes: formData.notes
-    };
+    if (!patientId) {
+      alert("No patient selected. Please complete Patient Demographics first.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const nutrientsData = {
+        dietaryPreferences: formData.dietaryPreferences,
+        supplementUsage: formData.supplementUsage,
+        notes: formData.notes
+      };
+
+      console.log('Sending nutrients history data:', nutrientsData);
+
+      // Save to backend using patientId
+      const response = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/nutrients-history`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(nutrientsData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to save nutrients history data");
+      }
+
+      console.log("Nutrients history data saved:", result.data);
+      alert('Nutrients history saved successfully!');
+      
+      // Close the panel after successful save
+      if (onClose) {
+        onClose();
+      }
+
+    } catch (error) {
+      console.error("Error saving nutrients history data:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
     
-    updateNutrientsHistory(nutrientsData);
-    console.log("Nutrients history saved:", nutrientsData);
-    alert('Nutrients history saved successfully!');
+    if (!patientId) {
+      return;
+    }
+
+    // Re-fetch data to reset form
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/nutrients-history`
+      );
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setFormData({
+          dietaryPreferences: data.data.dietary_preferences || "",
+          supplementUsage: data.data.supplement_usage || "",
+          notes: data.data.notes || ""
+        });
+      } else {
+        // Reset to defaults if no data
+        setFormData({
+          dietaryPreferences: "",
+          supplementUsage: "",
+          notes: ""
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting form:', error);
+    }
   };
 
-  const handleCancel = () => {
-    setFormData({
-      dietaryPreferences: socialHistoryData?.nutrientsHistory?.dietaryPreferences || "",
-      supplementUsage: socialHistoryData?.nutrientsHistory?.supplementUsage || "",
-      notes: socialHistoryData?.nutrientsHistory?.notes || ""
-    });
-  };
+  if (loading) {
+    return (
+      <div className="nutrients-panel">
+        <div className="panel-header">
+          <h3>Nutrients History</h3>
+          <button className="close-btn" onClick={handleClose}>×</button>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="nutrients-panel">
@@ -93,8 +202,19 @@ const NutrientsHistory = ({ onClose }) => {
       </div>
 
       <div className="nutrients-buttons">
-        <button className="save-btn" onClick={handleSave}>
-          Save Nutrients Data
+        <button 
+          className="save-btn" 
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Nutrients Data"}
+        </button>
+        <button 
+          className="cancel-btn" 
+          onClick={handleCancel}
+          disabled={isSaving}
+        >
+          Cancel
         </button>
       </div>
     </div>

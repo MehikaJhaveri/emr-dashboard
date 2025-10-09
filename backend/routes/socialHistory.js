@@ -1581,4 +1581,394 @@ router.delete('/:patientId/education', async (req, res) => {
   }
 });
 
+// POST - Create/Update social isolation and connection data for a specific patient
+router.post('/:patientId/social-isolation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { isolationStatus, socialSupport, interactions, notes } = req.body;
+
+    // Prepare update data - nested under social_history
+    const socialIsolationData = {
+      isolation_status: isolationStatus || '',
+      social_support: socialSupport || '',
+      frequency_of_social_interactions: interactions || '',
+      notes: notes || ''
+    };
+
+    console.log('Processed social isolation data:', socialIsolationData);
+
+    // Update patient's social isolation information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.social_isolation_connection': socialIsolationData },
+      { new: true, runValidators: true }
+    ).select('social_history.social_isolation_connection');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Social isolation information saved successfully',
+      data: updatedPatient.social_history?.social_isolation_connection
+    });
+  } catch (error) {
+    console.error('Error saving social isolation data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving social isolation data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve social isolation and connection data for a specific patient
+router.get('/:patientId/social-isolation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.social_isolation_connection');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.social_isolation_connection || {}
+    });
+  } catch (error) {
+    console.error('Error fetching social isolation data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching social isolation data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update social isolation and connection data for a specific patient
+router.put('/:patientId/social-isolation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { isolationStatus, socialSupport, interactions, notes } = req.body;
+
+    // Prepare update data - nested under social_history
+    const socialIsolationData = {
+      isolation_status: isolationStatus || '',
+      social_support: socialSupport || '',
+      frequency_of_social_interactions: interactions || '',
+      notes: notes || ''
+    };
+
+    console.log('Processed social isolation data:', socialIsolationData);
+
+    // Update patient's social isolation information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.social_isolation_connection': socialIsolationData },
+      { new: true, runValidators: true }
+    ).select('social_history.social_isolation_connection');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Social isolation information updated successfully',
+      data: updatedPatient.social_history?.social_isolation_connection
+    });
+  } catch (error) {
+    console.error('Error updating social isolation data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating social isolation data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove social isolation and connection data for a specific patient
+router.delete('/:patientId/social-isolation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.social_isolation_connection': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Social isolation information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting social isolation data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting social isolation data',
+      error: error.message
+    });
+  }
+});
+
+// POST - Create/Update nutrients history data for a specific patient
+router.post('/:patientId/nutrients-history', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { dietaryPreferences, supplementUsage, notes } = req.body;
+
+    // Prepare update data - nested under social_history
+    const nutrientsHistoryData = {
+      dietary_preferences: dietaryPreferences || '',
+      supplement_usage: supplementUsage || '',
+      notes: notes || ''
+    };
+
+    console.log('Processed nutrients history data:', nutrientsHistoryData);
+
+    // Update patient's nutrients history information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.nutrients_history': nutrientsHistoryData },
+      { new: true, runValidators: true }
+    ).select('social_history.nutrients_history');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Nutrients history information saved successfully',
+      data: updatedPatient.social_history?.nutrients_history
+    });
+  } catch (error) {
+    console.error('Error saving nutrients history data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving nutrients history data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve nutrients history data for a specific patient
+router.get('/:patientId/nutrients-history', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.nutrients_history');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.nutrients_history || {}
+    });
+  } catch (error) {
+    console.error('Error fetching nutrients history data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching nutrients history data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update nutrients history data for a specific patient
+router.put('/:patientId/nutrients-history', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { dietaryPreferences, supplementUsage, notes } = req.body;
+
+    // Prepare update data - nested under social_history
+    const nutrientsHistoryData = {
+      dietary_preferences: dietaryPreferences || '',
+      supplement_usage: supplementUsage || '',
+      notes: notes || ''
+    };
+
+    console.log('Processed nutrients history data:', nutrientsHistoryData);
+
+    // Update patient's nutrients history information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.nutrients_history': nutrientsHistoryData },
+      { new: true, runValidators: true }
+    ).select('social_history.nutrients_history');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Nutrients history information updated successfully',
+      data: updatedPatient.social_history?.nutrients_history
+    });
+  } catch (error) {
+    console.error('Error updating nutrients history data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating nutrients history data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove nutrients history data for a specific patient
+router.delete('/:patientId/nutrients-history', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.nutrients_history': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Nutrients history information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting nutrients history data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting nutrients history data',
+      error: error.message
+    });
+  }
+});
+
 export default router;

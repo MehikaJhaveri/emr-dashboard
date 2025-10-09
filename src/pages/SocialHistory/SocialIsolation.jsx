@@ -1,15 +1,50 @@
-import React, { useState } from "react";
-import { useSocialHistory } from "./SocialHistoryContext";
+import React, { useState, useEffect } from "react";
 import "./SocialIsolation.css";
 
 const SocialIsolation = ({ onClose }) => {
-  const { updateSocialIsolation, socialHistoryData } = useSocialHistory();
   const [formData, setFormData] = useState({
-    isolationStatus: socialHistoryData?.socialIsolation?.isolationStatus || "Low",
-    socialSupport: socialHistoryData?.socialIsolation?.socialSupport || "Supportive family",
-    interactions: socialHistoryData?.socialIsolation?.interactions || "",
-    notes: socialHistoryData?.socialIsolation?.notes || ""
+    isolationStatus: "Low",
+    socialSupport: "Supportive family",
+    interactions: "",
+    notes: ""
   });
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch existing data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      
+      if (!patientId) {
+        console.error('No patientId in localStorage');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/social-history/${patientId}/social-isolation`
+        );
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setFormData({
+            isolationStatus: data.data.isolation_status || "Low",
+            socialSupport: data.data.social_support || "Supportive family",
+            interactions: data.data.frequency_of_social_interactions || "",
+            notes: data.data.notes || ""
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching social isolation data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -17,40 +52,116 @@ const SocialIsolation = ({ onClose }) => {
   };
 
   const handleClose = () => {
-    console.log("Close button clicked!"); // Debug log
-    console.log("onClose prop:", onClose); // Check if onClose exists
-    
+    console.log("Close button clicked!");
     if (onClose) {
-      console.log("Calling onClose function"); // Debug log
       onClose();
     } else {
-      console.log("No onClose function provided!"); // Debug log
+      console.log("No onClose function provided!");
       alert("Close function not provided by parent component");
     }
   };
 
+  const handleSave = async () => {
+    // Get patientId from localStorage
+    const patientId = localStorage.getItem("currentPatientId");
 
-  const handleSave = () => {
-    const isolationData = {
-      isolationStatus: formData.isolationStatus,
-      socialSupport: formData.socialSupport,
-      interactions: formData.interactions,
-      notes: formData.notes
-    };
+    if (!patientId) {
+      alert("No patient selected. Please complete Patient Demographics first.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const isolationData = {
+        isolationStatus: formData.isolationStatus,
+        socialSupport: formData.socialSupport,
+        interactions: formData.interactions,
+        notes: formData.notes
+      };
+
+      console.log('Sending social isolation data:', isolationData);
+
+      // Save to backend using patientId
+      const response = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/social-isolation`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(isolationData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to save social isolation data");
+      }
+
+      console.log("Social isolation data saved:", result.data);
+      alert('Social isolation information saved successfully!');
+      
+      // Close the panel after successful save
+      if (onClose) {
+        onClose();
+      }
+
+    } catch (error) {
+      console.error("Error saving social isolation data:", error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
     
-    updateSocialIsolation(isolationData);
-    console.log("Social isolation data saved:", isolationData);
-    alert('Social isolation information saved successfully!');
+    if (!patientId) {
+      return;
+    }
+
+    // Re-fetch data to reset form
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/social-isolation`
+      );
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setFormData({
+          isolationStatus: data.data.isolation_status || "Low",
+          socialSupport: data.data.social_support || "Supportive family",
+          interactions: data.data.frequency_of_social_interactions || "",
+          notes: data.data.notes || ""
+        });
+      } else {
+        // Reset to defaults if no data
+        setFormData({
+          isolationStatus: "Low",
+          socialSupport: "Supportive family",
+          interactions: "",
+          notes: ""
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting form:', error);
+    }
   };
 
-  const handleCancel = () => {
-    setFormData({
-      isolationStatus: socialHistoryData?.socialIsolation?.isolationStatus || "Low",
-      socialSupport: socialHistoryData?.socialIsolation?.socialSupport || "Supportive family",
-      interactions: socialHistoryData?.socialIsolation?.interactions || "",
-      notes: socialHistoryData?.socialIsolation?.notes || ""
-    });
-  };
+  if (loading) {
+    return (
+      <div className="social-panel">
+        <div className="panel-header">
+          <h3>Social Isolation & Connection</h3>
+          <button className="close-btn" onClick={handleClose}>×</button>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="social-panel">
@@ -66,9 +177,14 @@ const SocialIsolation = ({ onClose }) => {
           value={formData.isolationStatus}
           onChange={handleChange}
         >
-          <option>Low</option>
-          <option>Moderate</option>
-          <option>High</option>
+          <option value="Not Isolated">Not Isolated</option>
+          <option value="Self-Isolating">Self-Isolating</option>
+          <option value="Quarantined">Quarantined</option>
+          <option value="Socially Isolated">Socially Isolated</option>
+          <option value="Low">Low</option>
+          <option value="Moderate">Moderate</option>
+          <option value="High">High</option>
+          <option value="Other">Other</option>
         </select>
       </div>
 
@@ -79,11 +195,16 @@ const SocialIsolation = ({ onClose }) => {
           value={formData.socialSupport}
           onChange={handleChange}
         >
-          <option>Supportive family</option>
-          <option>Friends</option>
-          <option>Community groups</option>
-          <option>Minimal support</option>
-          <option>None</option>
+          <option value="Strong">Strong</option>
+          <option value="Moderate">Moderate</option>
+          <option value="Limited">Limited</option>
+          <option value="None">None</option>
+          <option value="Unknown">Unknown</option>
+          <option value="Supportive family">Supportive family</option>
+          <option value="Friends">Friends</option>
+          <option value="Community groups">Community groups</option>
+          <option value="Minimal Support">Minimal Support</option>
+          <option value="Other">Other</option>
         </select>
       </div>
 
@@ -110,8 +231,19 @@ const SocialIsolation = ({ onClose }) => {
       </div>
 
       <div className="social-buttons">
-        <button className="save-btn" onClick={handleSave}>
-          Save Social Data
+        <button 
+          className="save-btn" 
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Social Data"}
+        </button>
+        <button 
+          className="cancel-btn" 
+          onClick={handleCancel}
+          disabled={isSaving}
+        >
+          Cancel
         </button>
       </div>
     </div>
