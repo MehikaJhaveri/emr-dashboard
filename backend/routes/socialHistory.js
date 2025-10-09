@@ -1971,4 +1971,627 @@ router.delete('/:patientId/nutrients-history', async (req, res) => {
   }
 });
 
+// POST - Create/Update stress data for a specific patient
+router.post('/:patientId/stress', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { stressLevel, stressors, coping, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const stressData = {};
+
+    if (stressLevel !== undefined) {
+      stressData.perceived_stress_level = stressLevel || '';
+    }
+
+    if (stressors !== undefined) {
+      stressData.major_stressors = stressors || '';
+    }
+
+    if (coping !== undefined) {
+      stressData.coping_mechanisms = coping || '';
+    }
+
+    if (notes !== undefined) {
+      stressData.notes = notes || '';
+    }
+
+    console.log('Processed stress data:', stressData);
+
+    // Update patient's stress information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.stress': stressData },
+      { new: true, runValidators: true }
+    ).select('social_history.stress');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Stress information saved successfully',
+      data: updatedPatient.social_history?.stress
+    });
+  } catch (error) {
+    console.error('Error saving stress data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving stress data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve stress data for a specific patient
+router.get('/:patientId/stress', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.stress');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.stress || {}
+    });
+  } catch (error) {
+    console.error('Error fetching stress data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching stress data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update stress data for a specific patient
+router.put('/:patientId/stress', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { stressLevel, stressors, coping, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const stressData = {};
+
+    if (stressLevel !== undefined) {
+      stressData.perceived_stress_level = stressLevel || '';
+    }
+
+    if (stressors !== undefined) {
+      stressData.major_stressors = stressors || '';
+    }
+
+    if (coping !== undefined) {
+      stressData.coping_mechanisms = coping || '';
+    }
+
+    if (notes !== undefined) {
+      stressData.notes = notes || '';
+    }
+
+    console.log('Processed stress data:', stressData);
+
+    // Update patient's stress information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.stress': stressData },
+      { new: true, runValidators: true }
+    ).select('social_history.stress');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Stress information updated successfully',
+      data: updatedPatient.social_history?.stress
+    });
+  } catch (error) {
+    console.error('Error updating stress data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating stress data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove stress data for a specific patient
+router.delete('/:patientId/stress', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.stress': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Stress information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting stress data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting stress data',
+      error: error.message
+    });
+  }
+});
+
+// POST - Create/Update gender identity data for a specific patient
+router.post('/:patientId/gender-identity', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { identity, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const genderIdentityData = {};
+
+    if (identity !== undefined) {
+      genderIdentityData.gender_identity = identity || '';
+    }
+
+    if (notes !== undefined) {
+      genderIdentityData.notes = notes || '';
+    }
+
+    console.log('Processed gender identity data:', genderIdentityData);
+
+    // Update patient's gender identity information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.gender_identity': genderIdentityData },
+      { new: true, runValidators: true }
+    ).select('social_history.gender_identity');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Gender identity information saved successfully',
+      data: updatedPatient.social_history?.gender_identity
+    });
+  } catch (error) {
+    console.error('Error saving gender identity data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving gender identity data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve gender identity data for a specific patient
+router.get('/:patientId/gender-identity', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.gender_identity');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.gender_identity || {}
+    });
+  } catch (error) {
+    console.error('Error fetching gender identity data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching gender identity data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update gender identity data for a specific patient
+router.put('/:patientId/gender-identity', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { identity, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const genderIdentityData = {};
+
+    if (identity !== undefined) {
+      genderIdentityData.gender_identity = identity || '';
+    }
+
+    if (notes !== undefined) {
+      genderIdentityData.notes = notes || '';
+    }
+
+    console.log('Processed gender identity data:', genderIdentityData);
+
+    // Update patient's gender identity information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.gender_identity': genderIdentityData },
+      { new: true, runValidators: true }
+    ).select('social_history.gender_identity');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Gender identity information updated successfully',
+      data: updatedPatient.social_history?.gender_identity
+    });
+  } catch (error) {
+    console.error('Error updating gender identity data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating gender identity data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove gender identity data for a specific patient
+router.delete('/:patientId/gender-identity', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.gender_identity': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Gender identity information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting gender identity data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting gender identity data',
+      error: error.message
+    });
+  }
+});
+
+// POST - Create/Update sexual orientation data for a specific patient
+router.post('/:patientId/sexual-orientation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { orientation, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const sexualOrientationData = {};
+
+    if (orientation !== undefined) {
+      sexualOrientationData.sexual_orientation = orientation || '';
+    }
+
+    if (notes !== undefined) {
+      sexualOrientationData.notes = notes || '';
+    }
+
+    console.log('Processed sexual orientation data:', sexualOrientationData);
+
+    // Update patient's sexual orientation information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.sexual_orientation': sexualOrientationData },
+      { new: true, runValidators: true }
+    ).select('social_history.sexual_orientation');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Sexual orientation information saved successfully',
+      data: updatedPatient.social_history?.sexual_orientation
+    });
+  } catch (error) {
+    console.error('Error saving sexual orientation data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error saving sexual orientation data',
+      error: error.message
+    });
+  }
+});
+
+// GET - Retrieve sexual orientation data for a specific patient
+router.get('/:patientId/sexual-orientation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patient = await Patient.findById(patientId).select('social_history.sexual_orientation');
+
+    if (!patient) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Patient not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: patient.social_history?.sexual_orientation || {}
+    });
+  } catch (error) {
+    console.error('Error fetching sexual orientation data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching sexual orientation data',
+      error: error.message
+    });
+  }
+});
+
+// PUT - Update sexual orientation data for a specific patient
+router.put('/:patientId/sexual-orientation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { orientation, notes } = req.body;
+
+    // Prepare update data - only include fields with valid values
+    const sexualOrientationData = {};
+
+    if (orientation !== undefined) {
+      sexualOrientationData.sexual_orientation = orientation || '';
+    }
+
+    if (notes !== undefined) {
+      sexualOrientationData.notes = notes || '';
+    }
+
+    console.log('Processed sexual orientation data:', sexualOrientationData);
+
+    // Update patient's sexual orientation information under social_history
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { 'social_history.sexual_orientation': sexualOrientationData },
+      { new: true, runValidators: true }
+    ).select('social_history.sexual_orientation');
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Sexual orientation information updated successfully',
+      data: updatedPatient.social_history?.sexual_orientation
+    });
+  } catch (error) {
+    console.error('Error updating sexual orientation data:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        error: error.message,
+        details: error.errors
+      });
+    }
+
+    // Handle MongoDB schema validation errors (code 121)
+    if (error.code === 121) {
+      console.error('MongoDB validation error:', JSON.stringify(error.errInfo, null, 2));
+      return res.status(400).json({
+        success: false,
+        message: 'Document validation failed - data does not match schema requirements',
+        error: error.errmsg,
+        details: error.errInfo
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating sexual orientation data',
+      error: error.message
+    });
+  }
+});
+
+// DELETE - Remove sexual orientation data for a specific patient
+router.delete('/:patientId/sexual-orientation', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $unset: { 'social_history.sexual_orientation': '' } },
+      { new: true }
+    );
+
+    if (!updatedPatient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Sexual orientation information deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting sexual orientation data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting sexual orientation data',
+      error: error.message
+    });
+  }
+});
+
+
 export default router;
