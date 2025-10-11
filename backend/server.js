@@ -14,6 +14,7 @@ import allergiesRoutes from "./routes/allergies.js"
 import familyhistoryRoutes from "./routes/familyHistory.js"
 import medicalHistoryRoutes from "./routes/medicalHistory.js"
 import socialHistoryRoutes from "./routes/socialHistory.js";
+import visitRoutes from './routes/visitRoutes.js';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/api/allergies', allergiesRoutes);
 app.use('/api/family-history', familyhistoryRoutes);
 app.use('/api/medical-history', medicalHistoryRoutes);
 app.use('/api/social-history', socialHistoryRoutes);
+app.use('/api', visitRoutes);
 
 // Root route
 app.get('/', (req, res) => {
