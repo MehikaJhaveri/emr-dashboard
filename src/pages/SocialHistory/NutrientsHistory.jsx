@@ -151,7 +151,6 @@ const NutrientsHistory = ({ onClose }) => {
       <div className="nutrients-panel">
         <div className="panel-header">
           <h3>Nutrients History</h3>
-          <button className="close-btn" onClick={handleClose}>×</button>
         </div>
         <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
       </div>

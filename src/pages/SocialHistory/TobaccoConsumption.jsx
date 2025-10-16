@@ -139,7 +139,6 @@ const TobaccoConsumption = ({ onClose }) => {
       <div className="tobacco-consumption-panel">
         <div className="panel-header">
           <h3>Tobacco Consumption</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
         </div>
         <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
       </div>

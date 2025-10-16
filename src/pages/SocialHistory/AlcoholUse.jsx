@@ -90,7 +90,6 @@ const AlcoholUse = ({ onClose }) => {
     <div className="alcohol-use-panel">
       <div className="panel-header">
         <h3>Alcohol Use</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
       </div>
 
       <div className="form-group">

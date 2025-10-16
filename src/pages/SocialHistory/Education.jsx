@@ -117,7 +117,6 @@ const Education = ({ onClose }) => {
     <div className="education-panel">
       <div className="panel-header">
         <h3>Education</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
       </div>
 
       <div className="form-group">

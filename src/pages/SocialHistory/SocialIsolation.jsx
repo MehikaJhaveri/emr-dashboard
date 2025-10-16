@@ -156,7 +156,6 @@ const SocialIsolation = ({ onClose }) => {
       <div className="social-panel">
         <div className="panel-header">
           <h3>Social Isolation & Connection</h3>
-          <button className="close-btn" onClick={handleClose}>×</button>
         </div>
         <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
       </div>

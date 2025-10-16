@@ -6,7 +6,10 @@ const NurseDashboard = () => {
   const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [recentPatients, setRecentPatients] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [visitsSearchTerm, setVisitsSearchTerm] = useState('');
+  const [appointmentsSearchTerm, setAppointmentsSearchTerm] = useState('');
 
   useEffect(() => {
     // Hardcoded all patients
@@ -33,6 +36,14 @@ const NurseDashboard = () => {
     );
 
     setRecentPatients(sortedVisits);
+
+    // Hardcoded appointments
+    const upcomingAppointments = [
+      { id: 1, first_name: 'Sarah', last_name: 'Johnson', time: '9:00 AM', type: 'Follow-up' },
+      { id: 2, first_name: 'Michael', last_name: 'Chen', time: '11:30 AM', type: 'Consultation' },
+      { id: 3, first_name: 'Emma', last_name: 'Rodriguez', time: '2:15 PM', type: 'Physical Exam' },
+    ];
+    setAppointments(upcomingAppointments);
   }, []);
 
   const handleAddPatient = () => {
@@ -55,20 +66,28 @@ const NurseDashboard = () => {
     `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredVisits = recentPatients.filter(patient =>
+    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(visitsSearchTerm.toLowerCase())
+  );
+
+  const filteredAppointments = appointments.filter(appointment =>
+    `${appointment.first_name} ${appointment.last_name}`.toLowerCase().includes(appointmentsSearchTerm.toLowerCase())
+  );
+
   return (
     <div className="nurse-dashboard">
       <div className="dashboard-header">
         <h1>SSPD Dashboard</h1>
-        <p>Welcome back! Here's today's patient overview.</p>
+        <p>Welcome Back! Here's Today's Patient Overview.</p>
       </div>
 
       <div className="dashboard-content">
         {/* Column 1: Add patient + All Patients */}
-        <div className="col patient-list">
+        <div className="col">
           <div className="card">
-            <div className="patient-directory-header">
+            <div className="card-header-section">
               <h2>Patient Directory</h2>
-              <button className="add-patient-btn" onClick={handleAddPatient}>
+              <button className="header-action-btn" onClick={handleAddPatient}>
                 + Add New Patient
               </button>
             </div>
@@ -83,7 +102,7 @@ const NurseDashboard = () => {
               />
             </div>
 
-            <div className="patient-list-container">
+            <div className="content-scrollable">
               <h3>All Patients ({patients.length})</h3>
               <ul>
                 {filteredPatients.map((patient) => (
@@ -116,16 +135,28 @@ const NurseDashboard = () => {
         {/* Column 2: Recent patients (descending order) */}
         <div className="col">
           <div className="card">
-            <div className="card-header with-accent">
-              <button className="new-visit-btn" onClick={handleNewVisit}>
-                New Visit
+            <div className="card-header-section">
+              <h2>Recent Patient Encounters</h2>
+              <button className="header-action-btn" onClick={handleNewVisit}>
+                + New Visit
               </button>
             </div>
-            <div className="recent-patients">
-              <h3>Recent Patient Encounter</h3>
+
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search visits..."
+                className="search-box"
+                value={visitsSearchTerm}
+                onChange={(e) => setVisitsSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="content-scrollable">
+              <h3>Recent Visits ({recentPatients.length})</h3>
               <ul>
-                {recentPatients.length > 0 ? (
-                  recentPatients.slice(0, 10).map((patient) => (
+                {filteredVisits.length > 0 ? (
+                  filteredVisits.slice(0, 10).map((patient) => (
                     <li key={patient.id} className="recent-patient-item">
                       <div className="recent-patient-info">
                         <span className="patient-name">
@@ -139,7 +170,7 @@ const NurseDashboard = () => {
                     </li>
                   ))
                 ) : (
-                  <li className="no-data">No recent visits</li>
+                  <li className="no-data">No recent visits found</li>
                 )}
               </ul>
             </div>
@@ -149,35 +180,41 @@ const NurseDashboard = () => {
         {/* Column 3: Upcoming appointments */}
         <div className="col">
           <div className="card">
-            <div className="card-header with-accent">
-              <button className="new-appointment-btn" onClick={handleNewAppointment}>
-                New Appointment
+            <div className="card-header-section">
+              <h2>Upcoming Appointments</h2>
+              <button className="header-action-btn" onClick={handleNewAppointment}>
+                + New Appointment
               </button>
             </div>
-            <div className="appointments">
-              <h3>Upcoming Appointments</h3>
+
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search appointments..."
+                className="search-box"
+                value={appointmentsSearchTerm}
+                onChange={(e) => setAppointmentsSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="content-scrollable">
+              <h3>Today's Schedule ({appointments.length})</h3>
               <ul>
-                <li className="appointment-item">
-                  <div className="appointment-time">9:00 AM</div>
-                  <div className="appointment-info">
-                    <span className="patient-name">Sarah Johnson</span>
-                    <span className="appointment-type">Follow-up</span>
-                  </div>
-                </li>
-                <li className="appointment-item">
-                  <div className="appointment-time">11:30 AM</div>
-                  <div className="appointment-info">
-                    <span className="patient-name">Michael Chen</span>
-                    <span className="appointment-type">Consultation</span>
-                  </div>
-                </li>
-                <li className="appointment-item">
-                  <div className="appointment-time">2:15 PM</div>
-                  <div className="appointment-info">
-                    <span className="patient-name">Emma Rodriguez</span>
-                    <span className="appointment-type">Physical Exam</span>
-                  </div>
-                </li>
+                {filteredAppointments.length > 0 ? (
+                  filteredAppointments.map((appointment) => (
+                    <li key={appointment.id} className="appointment-item">
+                      <div className="appointment-time">{appointment.time}</div>
+                      <div className="appointment-info">
+                        <span className="patient-name">
+                          {appointment.first_name} {appointment.last_name}
+                        </span>
+                        <span className="appointment-type">{appointment.type}</span>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="no-data">No appointments found</li>
+                )}
               </ul>
               <button className="view-schedule-btn">View Full Schedule</button>
             </div>

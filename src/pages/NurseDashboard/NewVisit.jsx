@@ -402,7 +402,7 @@ const NewVisit = () => {
 
               <div className="form-group">
                 <h3>Diagnosis</h3>
-                <p className="helper-text">ICD-10 Quickest</p>
+                <p className="helper-text">Condition</p>
                 <input 
                   type="text" 
                   value={formData.icdQuickest} 

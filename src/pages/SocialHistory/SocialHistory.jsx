@@ -44,7 +44,18 @@ const SocialHistory = () => {
   const { socialHistoryData } = useSocialHistory();
 
   const handleToggle = (field) => {
-    setToggles((prev) => ({ ...prev, [field]: !prev[field] }));
+    setToggles((prev) => {
+      // Create a new object with all toggles set to false
+      const newToggles = Object.keys(prev).reduce((acc, key) => {
+        acc[key] = false;
+        return acc;
+      }, {});
+      
+      // Set the clicked toggle to the opposite of its current value
+      newToggles[field] = !prev[field];
+      
+      return newToggles;
+    });
   };
 
   // Function to close any panel by turning off its toggle

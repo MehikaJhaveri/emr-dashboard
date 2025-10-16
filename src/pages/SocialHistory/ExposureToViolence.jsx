@@ -149,7 +149,6 @@ const ExposureToViolence = ({ onClose }) => {
     <div className="violence-panel">
       <div className="panel-header">
         <h3>Exposure to Violence</h3>
-        <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">

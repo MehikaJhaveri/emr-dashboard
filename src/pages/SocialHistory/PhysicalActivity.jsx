@@ -137,7 +137,6 @@ const PhysicalActivity = ({ onClose }) => {
       <div className="physical-activity-panel">
         <div className="panel-header">
           <h3>Physical Activity</h3>
-          <button className="close-btn" onClick={handleClose}>×</button>
         </div>
         <p>Loading...</p>
       </div>

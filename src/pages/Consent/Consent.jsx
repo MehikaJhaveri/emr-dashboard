@@ -1,11 +1,12 @@
 // src/pages/Consent/Consent.jsx
 import React, { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import './Consent.css';
 
 export default function Consent() {
   const { patientData, contactData } = useOutletContext();
   const [agreed, setAgreed] = useState(false);
+  const navigate = useNavigate();
 
   const fullName = [patientData.firstName, patientData.middleName, patientData.lastName]
     .filter(Boolean)
@@ -25,7 +26,8 @@ export default function Consent() {
   const handleSave = () => {
     if (agreed) {
       alert('Consent saved successfully!');
-      // You can also perform actual save logic here.
+      // Redirect to nurse-dashboard
+      navigate('/nurse-dashboard');
     } else {
       alert('Please agree to the terms before saving.');
     }
@@ -76,7 +78,7 @@ export default function Consent() {
         </div>
       </div>
 
-      <button className="save-btn" onClick={handleSave}>Save</button>
+      <button className="save-btn" onClick={handleSave}disabled={!agreed}>Save</button>
     </div>
   );
 }
