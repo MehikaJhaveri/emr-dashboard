@@ -252,6 +252,57 @@ const patientSchema = new Schema({
     Test_results: { type: String }
   }],
 
+  assessments: [{
+    chief_complaints: { 
+      type: String,
+      default: ''
+    },
+    history_of_present_illness: { 
+      type: String,
+      default: ''
+    },
+    past_medical_history: { 
+      type: String,
+      default: ''
+    },
+    medication_history: { 
+      type: String,
+      default: ''
+    },
+    test_results: [{
+      results: { 
+        type: String, 
+        required: true 
+      },
+      test_file: {
+        file_id: { 
+          type: mongoose.Schema.Types.ObjectId, 
+          required: true 
+        }
+      },
+      comments: { 
+        type: String,
+        default: ''
+      }
+    }],
+    reminders_alerts: { 
+      type: String,
+      default: ''
+    },
+    plan_of_care: { 
+      type: String,
+      default: ''
+    },
+    created_at: {
+      type: Date,
+      default: Date.now
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
   medical_history: {
     conditions: [{
       condition_name: { type: String, required: true },
@@ -264,11 +315,6 @@ const patientSchema = new Schema({
         type: String,
         required: true,
         enum: ['Active', 'Inactive', 'Resolved', 'Chronic', 'Acute', 'Recurrent', 'Unknown', 'None']
-      },
-      severity: {
-        type: String,
-        required: true,
-        enum: ['Mild', 'Moderate', 'Severe', 'Critical', 'unknown', 'None']
       }
     }],
     
@@ -457,8 +503,8 @@ const patientSchema = new Schema({
       type: String,
       enum: [
         'Penicillin', 'Sulfa Drugs', 'Aspirin', 'Shellfish',
-        'Nuts (peanuts, almonds, cashews)', 'Eggs', 'Milk', 'Wheat', 'Soy',
-        'Pollen (ragweed, grass)', 'Dust Mites', 'Latex', 'Nickel',
+        'Nuts (e.g., peanuts, almonds, cashews)', 'Eggs', 'Milk', 'Wheat', 'Soy',
+        'Pollen (specific types, e.g., ragweed, grass)', 'Dust Mites', 'Latex', 'Nickel',
         'Pet Dander', 'Bee Venom', 'Mould', 'Certain Medications', 'Other'
       ]
     },

@@ -237,8 +237,18 @@ const FamilyHistory = () => {
               <option>Select</option>
               <option>Father</option>
               <option>Mother</option>
-              <option>Sibling</option>
-              <option>Grandparent</option>
+              <option>Brother</option>
+              <option>Sister</option>
+              <option>Son</option>
+              <option>Daughter</option>
+              <option>Grandfather</option>
+              <option>Grandmother</option>
+              <option>Uncle</option>
+              <option>Aunt</option>
+              <option>Cousin</option>
+              <option>Nephew</option>
+              <option>Niece</option>
+              <option>Spouse</option>
               <option>Other</option>
             </select>
 
@@ -300,20 +310,37 @@ const FamilyHistory = () => {
               <option>Select</option>
               <option>Father</option>
               <option>Mother</option>
-              <option>Sibling</option>
-              <option>Grandparent</option>
-              <option>None</option>
+              <option>Brother</option>
+              <option>Sister</option>
+              <option>Son</option>
+              <option>Daughter</option>
+              <option>Grandfather</option>
+              <option>Grandmother</option>
+              <option>Uncle</option>
+              <option>Aunt</option>
+              <option>Cousin</option>
+              <option>Nephew</option>
+              <option>Niece</option>
+              <option>Spouse</option>
+              <option>Other</option>
             </select>
           </div>
           <div className="form-row">
             <label>Genetic Testing Results</label>
-            <input
-              type="text"
+            <select
               name="testResults"
-              placeholder="Write Here"
               value={currentGeneticCondition.testResults}
               onChange={handleGeneticConditionChange}
-            />
+              required
+            >
+              <option value="">Select</option>
+              <option value="Positive">Positive</option>
+              <option value="Negative">Negative</option>
+              <option value="Pending">Pending</option>
+              <option value="Unknown">Unknown</option>
+              <option value="Not Tested">Not Tested</option>
+            </select>
+
           </div>
         </div>
 

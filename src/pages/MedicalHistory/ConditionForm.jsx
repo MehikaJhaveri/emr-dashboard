@@ -214,6 +214,7 @@ export default function ConditionForm({ closeForm, onSave }) {
           <option value="Acute">Acute</option>
           <option value="Recurrent">Recurrent</option>
           <option value="Unknown">Unknown</option>
+          <option value="None">None</option>
         </select>
       </div>
 

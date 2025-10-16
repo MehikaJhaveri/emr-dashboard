@@ -90,7 +90,7 @@ const InsuranceInformation = () => {
     });
 
     const data = await res.json();
-
+    
     if (res.ok) {
       console.log("Saved Insurance Data:", data);
 
@@ -111,18 +111,18 @@ const InsuranceInformation = () => {
 };
 
 
-  const handleFileUpload = async () => {
+  const handleFileUpload = async (patientId) => {
     if (selectedFiles.length === 0) return;
 
     try {
       setUploadStatus("Uploading...");
-      
+
       const formData = new FormData();
       selectedFiles.forEach(file => {
-        formData.append('insuranceCards', file);
+        formData.append("insuranceCards", file);
       });
 
-      const uploadRes = await fetch("http://localhost:5000/api/insurance/1/upload-card", {
+      const uploadRes = await fetch(`http://localhost:5000/api/insurance/${patientId}/upload-card`, {
         method: "POST",
         body: formData,
       });
@@ -133,13 +133,15 @@ const InsuranceInformation = () => {
         setUploadStatus("Files uploaded successfully!");
         console.log("Uploaded files:", uploadData);
       } else {
-        setUploadStatus("File upload failed: " + uploadData.error);
+        setUploadStatus("File upload failed: " + (uploadData.error || "Unknown error"));
+        console.error("Upload error response:", uploadData);
       }
     } catch (error) {
       console.error("Error uploading files:", error);
       setUploadStatus("File upload error occurred.");
     }
   };
+
 
   const handleNext = () => {
     updatePreviewData(insuranceData, "insurance");
@@ -318,10 +320,10 @@ const InsuranceInformation = () => {
             onChange={handleChange}
             >
       <option value="">Select Plan Type</option>
-      <option value="HMO">Health Maintenance Organization (HMO)</option>
-      <option value="PPO">Preferred Provider Organization (PPO)</option>
-      <option value="POS">Point of Service (POS)</option>
-      <option value="EPO">Exclusive Provider Organization (EPO)</option>
+      <option value="Health Maintenance Organization (HMO)">Health Maintenance Organization (HMO)</option>
+      <option value="Preferred Provider Organization (PPO)">Preferred Provider Organization (PPO)</option>
+      <option value="Point of Service (POS)">Point of Service (POS)</option>
+      <option value="Exclusive Provider Organization (EPO)">Exclusive Provider Organization (EPO)</option>
       <option value="Medicare">Medicare</option>
       <option value="Medicaid">Medicaid</option>
       <option value="Private Insurance">Private Insurance</option>
@@ -411,10 +413,10 @@ const InsuranceInformation = () => {
             onChange={handleChange}
             >
       <option value="">Select Plan Type</option>
-      <option value="HMO">Health Maintenance Organization (HMO)</option>
-      <option value="PPO">Preferred Provider Organization (PPO)</option>
-      <option value="POS">Point of Service (POS)</option>
-      <option value="EPO">Exclusive Provider Organization (EPO)</option>
+      <option value="Health Maintenance Organization (HMO)">Health Maintenance Organization (HMO)</option>
+      <option value="Preferred Provider Organization (PPO)">Preferred Provider Organization (PPO)</option>
+      <option value="Point of Service (POS)">Point of Service (POS)</option>
+      <option value="Exclusive Provider Organization (EPO)">Exclusive Provider Organization (EPO)</option>
       <option value="Medicare">Medicare</option>
       <option value="Medicaid">Medicaid</option>
       <option value="Private Insurance">Private Insurance</option>

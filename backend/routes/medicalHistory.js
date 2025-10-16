@@ -78,8 +78,7 @@ router.post('/conditions', async (req, res) => {
       condition_name: condition.condition,
       diagnosis_date: convertDateFormat(condition.diagnosisDate),
       treating_physician: condition.physician,
-      status: condition.status || 'Unknown',
-      severity: 'unknown' // lowercase to match schema enum
+      status: condition.status || 'Unknown'
     }));
 
     patient.medical_history.conditions = formattedConditions;

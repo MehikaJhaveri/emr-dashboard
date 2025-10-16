@@ -156,11 +156,16 @@ router.post('/:patient_id/json', async (req, res) => {
       tests
     } = req.body;
 
+    console.log('Received patient_id:', patient_id);
+    console.log('Received body:', req.body);
+    console.log('Tests array:', tests);
+
     if (!patient_id) {
       return res.status(400).json({ error: 'Patient ID is required' });
     }
 
     const patient = await Patient.findById(patient_id);
+    console.log('Found patient:', patient ? 'Yes' : 'No');
 
     if (!patient) {
       return res.status(404).json({ error: 'Patient not found' });
@@ -170,19 +175,19 @@ router.post('/:patient_id/json', async (req, res) => {
     const testResults = [];
     if (tests && Array.isArray(tests)) {
       tests.forEach(test => {
-        if (test.result) {
-          const testResult = {
-            results: test.result,
-            comments: test.comment || '',
-            test_file: {
-              file_id: test.fileId || new mongoose.Types.ObjectId()
-            }
-          };
-
-          testResults.push(testResult);
-        }
+        // Accept test if it has a result (even empty string after trim check in frontend)
+        const testResult = {
+          results: test.result || 'No result specified',
+          comments: test.comment || '',
+          test_file: {
+            file_id: test.fileId || new mongoose.Types.ObjectId()
+          }
+        };
+        testResults.push(testResult);
       });
     }
+
+    console.log('Built test results:', testResults);
 
     const assessmentData = {
       chief_complaints: chiefComplaints || '',
@@ -194,12 +199,17 @@ router.post('/:patient_id/json', async (req, res) => {
       plan_of_care: planCare || ''
     };
 
+    console.log('Assessment data to save:', assessmentData);
+
     if (!patient.assessments) {
       patient.assessments = [];
     }
 
     patient.assessments.push(assessmentData);
-    await patient.save();
+    
+    console.log('Patient assessments before save:', patient.assessments.length);
+    const savedPatient = await patient.save();
+    console.log('Patient assessments after save:', savedPatient.assessments.length);
 
     res.status(201).json({
       message: 'Assessment added successfully',

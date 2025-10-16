@@ -21,14 +21,14 @@ const Allergies = () => {
     "Nuts (e.g., peanuts, almonds, cashews)", "Eggs", "Milk",
     "Wheat", "Soy", "Pollen (specific types, e.g., ragweed, grass)",
     "Dust Mites", "Latex", "Nickel", "Pet Dander",
-    "Bee Venom", "Mould", "Certain Medications (specify if known)",
+    "Bee Venom", "Mould", "Certain Medications",
     "Other"
   ];
 
   const reactionOptions = [
     "Rash", "Itching", "Hives", "Swelling", "Difficulty Breathing",
     "Anaphylaxis", "Nausea", "Vomiting", "Diarrhoea", "Dizziness",
-    "Fainting", "Other"
+    "Fainting", "Sneezing", "Other"
   ];
 
   const severityOptions = ["Mild", "Moderate", "Severe", "Critical", "Unknown", "None"];

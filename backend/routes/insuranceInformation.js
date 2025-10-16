@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import Patient from '../models/patients.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -252,9 +253,7 @@ router.post('/:patient_id/upload-card', upload.array('insuranceCards', 5), async
 
     // Create a placeholder ObjectId for the file
     // In production, you should create a File document in a separate collection
-    const mongoose = await import('mongoose');
-    const fileId = new mongoose.default.Types.ObjectId();
-
+    const fileId = new mongoose.Types.ObjectId();
     // Initialize insurance if it doesn't exist
     if (!patient.insurance) {
       return res.status(400).json({ 

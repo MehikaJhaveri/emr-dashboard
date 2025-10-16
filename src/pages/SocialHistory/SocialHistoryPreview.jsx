@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./SocialHistoryPreview.css";
 
 const SocialHistoryPreview = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const patientId = typeof window !== 'undefined' ? localStorage.getItem("currentPatientId") : null;
   
   // Extract all data with null fallbacks
   const {
@@ -23,6 +24,142 @@ const SocialHistoryPreview = () => {
     nutrientsHistory = null,
     // Add other sections as needed
   } = state?.socialHistoryData || {};
+
+  const [loadedData, setLoadedData] = useState({
+    tobaccoUse,
+    tobaccoConsumption,
+    alcoholUse,
+    socialText,
+    financialResources,
+    education,
+    physicalActivity,
+    stress,
+    socialIsolation,
+    exposureToViolence,
+    genderIdentity,
+    sexualOrientation,
+    nutrientsHistory,
+  });
+
+  useEffect(() => {
+    if (!patientId) return;
+
+    const safeJson = async (res) => {
+      try { return await res.json(); } catch { return null; }
+    };
+
+    const fetchSection = async (path, mapFn) => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/social-history/${patientId}/${path}`);
+        if (!res.ok) return null;
+        const body = await safeJson(res);
+        if (!body || !body.success || !body.data) return null;
+        return mapFn(body.data);
+      } catch {
+        return null;
+      }
+    };
+
+    const loaders = [
+      fetchSection('tobacco-smoking', (d) => ({
+        status: d.current_status ?? d.status ?? null,
+        dailyConsumption: d.average_daily_consumption ?? d.dailyConsumption ?? null,
+        duration: d.duration_of_use ?? d.duration ?? null,
+        durationUnit: d.duration_unit ?? d.durationUnit ?? null,
+        quitDate: d.quit_date ?? d.quitDate ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'tobaccoUse', value: v })),
+
+      fetchSection('tobacco-consumption', (d) => ({
+        status: d.current_status ?? d.status ?? null,
+        dailyConsumption: d.average_daily_consumption ?? d.dailyConsumption ?? null,
+        duration: d.duration_of_use ?? d.duration ?? null,
+        durationUnit: d.duration_unit ?? d.durationUnit ?? null,
+        quitDate: d.quit_date ?? d.quitDate ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'tobaccoConsumption', value: v })),
+
+      fetchSection('alcohol', (d) => ({
+        status: d.status ?? null,
+        weeklyConsumption: d.weeklyConsumption ?? d.average_weekly_consumption ?? null,
+        alcoholType: d.alcoholType ?? d.type ?? null,
+        period: d.period ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'alcoholUse', value: v })),
+
+      fetchSection('social-text', (d) => ({
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'socialText', value: v })),
+
+      fetchSection('financial-resources', (d) => ({
+        incomeLevel: d.income_level ?? d.incomeLevel ?? null,
+        employmentStatus: d.employment_status ?? d.employmentStatus ?? null,
+        financialSupport: d.financial_support ?? d.financialSupport ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'financialResources', value: v })),
+
+      fetchSection('education', (d) => ({
+        highestEducation: d.highest_level_of_education ?? d.highestEducation ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'education', value: v })),
+
+      fetchSection('physical-activity', (d) => ({
+        frequency: d.frequency ?? null,
+        type: d.type_of_exercise ?? d.type ?? null,
+        duration: d.duration ?? null,
+        durationUnit: d.duration_unit ?? null,
+        consistency: d.consistency ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'physicalActivity', value: v })),
+
+      fetchSection('stress', (d) => ({
+        stressLevel: d.perceived_stress_level ?? d.stressLevel ?? null,
+        stressors: d.major_stressors ?? d.stressors ?? null,
+        coping: d.coping_mechanisms ?? d.coping ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'stress', value: v })),
+
+      fetchSection('social-isolation', (d) => ({
+        isolationStatus: d.isolation_status ?? d.isolationStatus ?? null,
+        socialSupport: d.social_support ?? d.socialSupport ?? null,
+        interactions: d.frequency_of_social_interactions ?? d.interactions ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'socialIsolation', value: v })),
+
+      fetchSection('exposure-to-violence', (d) => ({
+        typeOfViolence: d.type_of_violence ?? d.typeOfViolence ?? null,
+        lastExposure: d.date_of_last_exposure ?? d.lastExposure ?? null,
+        supportReceived: d.support_or_intervention_received ?? d.supportReceived ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'exposureToViolence', value: v })),
+
+      fetchSection('gender-identity', (d) => ({
+        identity: d.gender_identity ?? d.identity ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'genderIdentity', value: v })),
+
+      fetchSection('sexual-orientation', (d) => ({
+        orientation: d.sexual_orientation ?? d.orientation ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'sexualOrientation', value: v })),
+
+      fetchSection('nutrients-history', (d) => ({
+        dietaryPreferences: d.dietary_preferences ?? d.dietaryPreferences ?? null,
+        supplementUsage: d.supplement_usage ?? d.supplementUsage ?? null,
+        notes: d.notes ?? null,
+      })).then(v => ({ key: 'nutrientsHistory', value: v })),
+    ];
+
+    Promise.all(loaders).then((pairs) => {
+      setLoadedData((prev) => {
+        const updated = { ...prev };
+        for (const p of pairs) {
+          if (p && p.value) updated[p.key] = p.value;
+        }
+        return updated;
+      });
+    });
+  }, [patientId]);
 
   const handleBack = () => navigate(-1);
   const handleNext = () => navigate('/dashboard/preview');
@@ -50,21 +187,21 @@ const SocialHistoryPreview = () => {
           <h3>Tobacco Use (Smoking)</h3>
           <div className="preview-grid">
             <div className="preview-item">
-              <strong>Status:</strong> {tobaccoUse?.status || "Not specified"}
+              <strong>Status:</strong> {loadedData.tobaccoUse?.status || "Not specified"}
             </div>
             <div className="preview-item">
               <strong>Daily Consumption:</strong> 
-              {tobaccoUse?.dailyConsumption ? `${tobaccoUse.dailyConsumption} cigarettes/day` : "Not specified"}
+              {loadedData.tobaccoUse?.dailyConsumption ? `${loadedData.tobaccoUse.dailyConsumption} cigarettes/day` : "Not specified"}
             </div>
             <div className="preview-item">
               <strong>Duration:</strong> 
-              {tobaccoUse?.duration ? `${tobaccoUse.duration} ${tobaccoUse.durationUnit || "years"}` : "Not specified"}
+              {loadedData.tobaccoUse?.duration ? `${loadedData.tobaccoUse.duration} ${loadedData.tobaccoUse.durationUnit || "years"}` : "Not specified"}
             </div>
             <div className="preview-item">
-              <strong>Quit Date:</strong> {tobaccoUse?.quitDate ? formatDate(tobaccoUse.quitDate) : "Not specified"}
+              <strong>Quit Date:</strong> {loadedData.tobaccoUse?.quitDate ? formatDate(loadedData.tobaccoUse.quitDate) : "Not specified"}
             </div>
             <div className="preview-item notes">
-              <strong>Notes:</strong> {tobaccoUse?.notes || "No notes provided"}
+              <strong>Notes:</strong> {loadedData.tobaccoUse?.notes || "No notes provided"}
             </div>
           </div>
         </section>
@@ -74,21 +211,21 @@ const SocialHistoryPreview = () => {
           <h3>Tobacco Consumption</h3>
           <div className="preview-grid">
             <div className="preview-item">
-              <strong>Status:</strong> {tobaccoConsumption?.status || "Not specified"}
+              <strong>Status:</strong> {loadedData.tobaccoConsumption?.status || "Not specified"}
             </div>
             <div className="preview-item">
               <strong>Daily Consumption:</strong> 
-              {tobaccoConsumption?.dailyConsumption ? `${tobaccoConsumption.dailyConsumption} units/day` : "Not specified"}
+              {loadedData.tobaccoConsumption?.dailyConsumption ? `${loadedData.tobaccoConsumption.dailyConsumption} units/day` : "Not specified"}
             </div>
             <div className="preview-item">
               <strong>Duration:</strong> 
-              {tobaccoConsumption?.duration ? `${tobaccoConsumption.duration} ${tobaccoConsumption.durationUnit || "years"}` : "Not specified"}
+              {loadedData.tobaccoConsumption?.duration ? `${loadedData.tobaccoConsumption.duration} ${loadedData.tobaccoConsumption.durationUnit || "years"}` : "Not specified"}
             </div>
             <div className="preview-item">
-              <strong>Quit Date:</strong> {tobaccoConsumption?.quitDate ? formatDate(tobaccoConsumption.quitDate) : "Not specified"}
+              <strong>Quit Date:</strong> {loadedData.tobaccoConsumption?.quitDate ? formatDate(loadedData.tobaccoConsumption.quitDate) : "Not specified"}
             </div>
             <div className="preview-item notes">
-              <strong>Notes:</strong> {tobaccoConsumption?.notes || "No notes provided"}
+              <strong>Notes:</strong> {loadedData.tobaccoConsumption?.notes || "No notes provided"}
             </div>
           </div>
         </section>
@@ -98,20 +235,20 @@ const SocialHistoryPreview = () => {
           <h3>Alcohol Use</h3>
           <div className="preview-grid">
             <div className="preview-item">
-              <strong>Status:</strong> {alcoholUse?.status || "Not specified"}
+              <strong>Status:</strong> {loadedData.alcoholUse?.status || "Not specified"}
             </div>
             <div className="preview-item">
               <strong>Weekly Consumption:</strong> 
-              {alcoholUse?.weeklyConsumption ? `${alcoholUse.weeklyConsumption} drinks/week` : "Not specified"}
+              {loadedData.alcoholUse?.weeklyConsumption ? `${loadedData.alcoholUse.weeklyConsumption} drinks/week` : "Not specified"}
             </div>
             <div className="preview-item">
-              <strong>Preferred Type:</strong> {alcoholUse?.alcoholType || "Not specified"}
+              <strong>Preferred Type:</strong> {loadedData.alcoholUse?.alcoholType || "Not specified"}
             </div>
             <div className="preview-item">
-              <strong>Period of Use:</strong> {alcoholUse?.period || "Not specified"}
+              <strong>Period of Use:</strong> {loadedData.alcoholUse?.period || "Not specified"}
             </div>
             <div className="preview-item notes">
-              <strong>Notes:</strong> {alcoholUse?.notes || "No notes provided"}
+              <strong>Notes:</strong> {loadedData.alcoholUse?.notes || "No notes provided"}
             </div>
           </div>
         </section>
@@ -119,9 +256,9 @@ const SocialHistoryPreview = () => {
         {/* Social Text Section */}
         <section className="preview-section">
           <h3>Social History (free text)</h3>
-          {socialText?.notes ? (
+          {loadedData.socialText?.notes ? (
             <div className="preview-text-content">
-              <p>{socialText.notes}</p>
+              <p>{loadedData.socialText.notes}</p>
             </div>
           ) : (
             <p className="no-data">No additional notes provided</p>
@@ -131,20 +268,20 @@ const SocialHistoryPreview = () => {
         {/* Financial Resources Section */}
         <section className="preview-section">
           <h3>Financial Resources</h3>
-          {financialResources ? (
+          {loadedData.financialResources ? (
             <div className="preview-grid">
               <div className="preview-item">
-                <strong>Income Level:</strong> {financialResources.incomeLevel || "Not specified"}
+                <strong>Income Level:</strong> {loadedData.financialResources.incomeLevel || "Not specified"}
               </div>
               <div className="preview-item">
-                <strong>Employment Status:</strong> {financialResources.employmentStatus || "Not specified"}
+                <strong>Employment Status:</strong> {loadedData.financialResources.employmentStatus || "Not specified"}
               </div>
               <div className="preview-item">
-                <strong>Financial Support:</strong> {financialResources.financialSupport || "Not specified"}
+                <strong>Financial Support:</strong> {loadedData.financialResources.financialSupport || "Not specified"}
               </div>
-              {financialResources.notes && (
+              {loadedData.financialResources.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {financialResources.notes}
+                  <strong>Notes:</strong> {loadedData.financialResources.notes}
                 </div>
               )}
             </div>
@@ -156,14 +293,14 @@ const SocialHistoryPreview = () => {
         {/* Education */}
         <section className="preview-section">
             <h3>Education</h3>
-            {education ? (
+            {loadedData.education ? (
               <div className="preview-grid">
                 <div className="preview-item">
-                  <strong>Highest Education:</strong> {education.highestEducation || "Not specified"}
+                  <strong>Highest Education:</strong> {loadedData.education.highestEducation || "Not specified"}
                 </div>
-                {education.notes && (
+                {loadedData.education.notes && (
                   <div className="preview-item notes">
-                    <strong>Notes:</strong> {education.notes}
+                    <strong>Notes:</strong> {loadedData.education.notes}
                   </div>
                 )}
               </div>
@@ -175,23 +312,23 @@ const SocialHistoryPreview = () => {
         {/* Physical Activity Section */}
         <section className="preview-section">
           <h3>Physical Activity</h3>
-          {physicalActivity ? (
+          {loadedData.physicalActivity ? (
             <div className="preview-grid">
               <div className="preview-item">
-                <strong>Frequency:</strong> {physicalActivity.frequency || "Not specified"}
+                <strong>Frequency:</strong> {loadedData.physicalActivity.frequency || "Not specified"}
               </div>
               <div className="preview-item">
-                <strong>Type:</strong> {physicalActivity.type || "Not specified"}
+                <strong>Type:</strong> {loadedData.physicalActivity.type || "Not specified"}
               </div>
               <div className="preview-item">
-                <strong>Duration:</strong> {physicalActivity.duration ? `${physicalActivity.duration} ${physicalActivity.durationUnit}` : "Not specified"}
+                <strong>Duration:</strong> {loadedData.physicalActivity.duration ? `${loadedData.physicalActivity.duration} ${loadedData.physicalActivity.durationUnit}` : "Not specified"}
               </div>
               <div className="preview-item">
-                <strong>Consistency:</strong> {physicalActivity.consistency || "Not specified"}
+                <strong>Consistency:</strong> {loadedData.physicalActivity.consistency || "Not specified"}
               </div>
-              {physicalActivity.notes && (
+              {loadedData.physicalActivity.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {physicalActivity.notes}
+                  <strong>Notes:</strong> {loadedData.physicalActivity.notes}
                 </div>
               )}
             </div>
@@ -202,24 +339,24 @@ const SocialHistoryPreview = () => {
         {/* Stress */}
         <section className="preview-section">
           <h3>Stress</h3>
-          {stress ? (
+          {loadedData.stress ? (
             <div className="preview-grid">
               <div className="preview-item">
-                <strong>Stress Level:</strong> {stress.stressLevel || "Not specified"}
+                <strong>Stress Level:</strong> {loadedData.stress.stressLevel || "Not specified"}
               </div>
-              {stress.stressors && (
+              {loadedData.stress.stressors && (
                 <div className="preview-item">
-                  <strong>Major Stressors:</strong> {stress.stressors}
+                  <strong>Major Stressors:</strong> {loadedData.stress.stressors}
                 </div>
               )}
-              {stress.coping && (
+              {loadedData.stress.coping && (
                 <div className="preview-item">
-                  <strong>Coping Mechanisms:</strong> {stress.coping}
+                  <strong>Coping Mechanisms:</strong> {loadedData.stress.coping}
                 </div>
               )}
-              {stress.notes && (
+              {loadedData.stress.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {stress.notes}
+                  <strong>Notes:</strong> {loadedData.stress.notes}
                 </div>
               )}
             </div>
@@ -230,22 +367,22 @@ const SocialHistoryPreview = () => {
         {/* Social Isolation */}
         <section className="preview-section">
           <h3>Social Isolation & Connection</h3>
-          {socialIsolation ? (
+          {loadedData.socialIsolation ? (
             <div className="preview-grid">
               <div className="preview-item">
-                <strong>Isolation Status:</strong> {socialIsolation.isolationStatus || "Not specified"}
+                <strong>Isolation Status:</strong> {loadedData.socialIsolation.isolationStatus || "Not specified"}
               </div>
               <div className="preview-item">
-                <strong>Social Support:</strong> {socialIsolation.socialSupport || "Not specified"}
+                <strong>Social Support:</strong> {loadedData.socialIsolation.socialSupport || "Not specified"}
               </div>
-              {socialIsolation.interactions && (
+              {loadedData.socialIsolation.interactions && (
                 <div className="preview-item">
-                  <strong>Social Interactions:</strong> {socialIsolation.interactions}
+                  <strong>Social Interactions:</strong> {loadedData.socialIsolation.interactions}
                 </div>
               )}
-              {socialIsolation.notes && (
+              {loadedData.socialIsolation.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {socialIsolation.notes}
+                  <strong>Notes:</strong> {loadedData.socialIsolation.notes}
                 </div>
               )}
             </div>
@@ -256,24 +393,24 @@ const SocialHistoryPreview = () => {
         {/* Exposure To Violence */}
         <section className="preview-section">
           <h3>Exposure to Violence</h3>       
-          {exposureToViolence ? (
+          {loadedData.exposureToViolence ? (
             <div className="preview-grid">
               <div className="preview-item">
-                <strong>Type of Violence:</strong> {exposureToViolence.typeOfViolence || "Not specified"}
+                <strong>Type of Violence:</strong> {loadedData.exposureToViolence.typeOfViolence || "Not specified"}
               </div>
-              {exposureToViolence.lastExposure && (
+              {loadedData.exposureToViolence.lastExposure && (
                 <div className="preview-item">
-                  <strong>Last Exposure:</strong> {new Date(exposureToViolence.lastExposure).toLocaleDateString()}
+                  <strong>Last Exposure:</strong> {new Date(loadedData.exposureToViolence.lastExposure).toLocaleDateString()}
                 </div>
               )}
-              {exposureToViolence.supportReceived && (
+              {loadedData.exposureToViolence.supportReceived && (
                 <div className="preview-item">
-                  <strong>Support Received:</strong> {exposureToViolence.supportReceived}
+                  <strong>Support Received:</strong> {loadedData.exposureToViolence.supportReceived}
                 </div>
               )}
-              {exposureToViolence.notes && (
+              {loadedData.exposureToViolence.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {exposureToViolence.notes}
+                  <strong>Notes:</strong> {loadedData.exposureToViolence.notes}
                </div>
               )}
             </div>
@@ -284,14 +421,14 @@ const SocialHistoryPreview = () => {
         {/* Gender Identity */}
        <section className="preview-section">
         <h3>Gender Identity</h3>
-        {genderIdentity ? (
+        {loadedData.genderIdentity ? (
           <div className="preview-grid">
             <div className="preview-item">
-              <strong>Identity:</strong> {genderIdentity.identity || "Not specified"}
+              <strong>Identity:</strong> {loadedData.genderIdentity.identity || "Not specified"}
             </div>
-            {genderIdentity.notes && (
+            {loadedData.genderIdentity.notes && (
               <div className="preview-item notes">
-                <strong>Notes:</strong> {genderIdentity.notes}
+                <strong>Notes:</strong> {loadedData.genderIdentity.notes}
               </div>
             )}
           </div>
@@ -303,14 +440,14 @@ const SocialHistoryPreview = () => {
         {/* Sexual Orientation */}
         <section className="preview-section">
           <h3>Sexual Orientation</h3>
-          {sexualOrientation ? (
+          {loadedData.sexualOrientation ? (
             <div className="preview-grid">
               <div className="preview-item">
-                <strong>Orientation:</strong> {sexualOrientation.orientation || "Not specified"}
+                <strong>Orientation:</strong> {loadedData.sexualOrientation.orientation || "Not specified"}
               </div>
-              {sexualOrientation.notes && (
+              {loadedData.sexualOrientation.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {sexualOrientation.notes}
+                  <strong>Notes:</strong> {loadedData.sexualOrientation.notes}
                 </div>
               )}
             </div>
@@ -321,19 +458,19 @@ const SocialHistoryPreview = () => {
         {/* Nutrient History */}
         <section className="preview-section">
           <h3>Nutrients History</h3>
-          {nutrientsHistory ? (
+          {loadedData.nutrientsHistory ? (
             <div className="preview-grid">
-              {nutrientsHistory.dietaryPreferences && (
+              {loadedData.nutrientsHistory.dietaryPreferences && (
                 <div className="preview-item">
-                  <strong>Dietary Preferences:</strong> {nutrientsHistory.dietaryPreferences}
+                  <strong>Dietary Preferences:</strong> {loadedData.nutrientsHistory.dietaryPreferences}
                 </div>
               )}
               <div className="preview-item">
-                <strong>Supplement Usage:</strong> {nutrientsHistory.supplementUsage || "Not specified"}
+                <strong>Supplement Usage:</strong> {loadedData.nutrientsHistory.supplementUsage || "Not specified"}
               </div>
-              {nutrientsHistory.notes && (
+              {loadedData.nutrientsHistory.notes && (
                 <div className="preview-item notes">
-                  <strong>Notes:</strong> {nutrientsHistory.notes}
+                  <strong>Notes:</strong> {loadedData.nutrientsHistory.notes}
                 </div>
               )}
             </div>

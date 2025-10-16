@@ -510,7 +510,7 @@ const PatientDemographics = () => {
           <option value="Business">Business</option>
           <option value="Services">Services</option>
           <option value="Retired">Retired</option>
-          <option value="Government/civil service">Government / Civil Service</option>
+          <option value="Government /civil service">Government / Civil Service</option>
           <option value="Other">Other</option>
         </select>
       </div>

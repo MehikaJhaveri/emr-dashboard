@@ -6,7 +6,7 @@ const TobaccoUse = ({ onClose }) => {
   const { updateTobaccoUse } = useSocialHistory();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [formData, setFormData] = useState({
     status: "Never Smoked",
     dailyConsumption: "",
@@ -16,11 +16,10 @@ const TobaccoUse = ({ onClose }) => {
     notes: "",
   });
 
-  // Fetch existing tobacco smoking data on component mount
+  // Fetch existing tobacco smoking data
   useEffect(() => {
     const fetchTobaccoData = async () => {
       const patientId = localStorage.getItem("currentPatientId");
-      
       if (!patientId) {
         console.log("No patient ID found in localStorage");
         setIsLoading(false);
@@ -28,23 +27,18 @@ const TobaccoUse = ({ onClose }) => {
       }
 
       try {
-        console.log("Fetching tobacco data for patient:", patientId);
-        const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/tobacco-smoking`);
-        
-        console.log("Response status:", response.status);
-        
-        // Check if response is JSON
+        const response = await fetch(
+          `http://localhost:5000/api/social-history/${patientId}/tobacco-smoking`
+        );
+
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           console.error("Response is not JSON. Content-Type:", contentType);
-          const text = await response.text();
-          console.error("Response body:", text);
           setIsLoading(false);
           return;
         }
 
         const result = await response.json();
-        console.log("Loaded tobacco data:", result);
 
         if (response.ok && result.success && result.data) {
           setFormData({
@@ -53,12 +47,11 @@ const TobaccoUse = ({ onClose }) => {
             duration: result.data.duration_of_use || "",
             durationUnit: result.data.duration_unit || "years",
             quitDate: result.data.quit_date || "",
-            notes: result.data.notes || ""
+            notes: result.data.notes || "",
           });
         }
       } catch (error) {
-        console.error("Error fetching tobacco smoking data:", error);
-        alert("Error loading tobacco data. Please check console for details.");
+        console.error("Error fetching tobacco data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -69,12 +62,11 @@ const TobaccoUse = ({ onClose }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
     const patientId = localStorage.getItem("currentPatientId");
-
     if (!patientId) {
       alert("No patient selected. Please complete Patient Demographics first.");
       return;
@@ -83,54 +75,49 @@ const TobaccoUse = ({ onClose }) => {
     setIsSaving(true);
 
     try {
-      const tobaccoData = {
-        status: formData.status,
-        dailyConsumption: formData.dailyConsumption,
-        duration: formData.duration,
-        durationUnit: formData.durationUnit,
-        quitDate: formData.quitDate,
-        notes: formData.notes
+      // Build payload based on status
+      const payload = {
+        current_status: formData.status, // Required field
+        notes: formData.notes || "",
       };
 
-      console.log('Sending tobacco smoking data:', tobaccoData);
-      console.log('To URL:', `http://localhost:5000/api/social-history/${patientId}/tobacco-smoking`);
+      if (formData.status === "Current Smoker" || formData.status === "Former Smoker") {
+        payload.average_daily_consumption = Number(formData.dailyConsumption) || 0;
+        payload.duration_of_use = formData.duration || "";
+        payload.duration_unit = formData.durationUnit || "years";
+      }
 
-      const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/tobacco-smoking`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(tobaccoData),
-      });
+      if (formData.status === "Former Smoker") {
+        payload.quit_date = formData.quitDate || "";
+      }
 
-      console.log("Response status:", response.status);
-      
-      // Check if response is JSON
+      console.log("Sending tobacco smoking data:", payload);
+
+      const response = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/tobacco-smoking`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         console.error("Response is not JSON. Content-Type:", contentType);
         const text = await response.text();
         console.error("Response body:", text);
-        alert("Server error: Received invalid response. Check console for details.");
+        alert("Server error: Invalid response.");
         return;
       }
 
       const result = await response.json();
-      console.log("Save response:", result);
+      if (!response.ok) throw new Error(result.message || "Failed to save tobacco data");
 
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to save tobacco data");
-      }
+      updateTobaccoUse(payload);
+      alert("Tobacco smoking information saved successfully!");
 
-      // Update context
-      updateTobaccoUse(tobaccoData);
-      
-      console.log("Tobacco data saved successfully:", result.data);
-      alert('Tobacco smoking information saved successfully!');
-      
-      // Close the panel after successful save
-      if (onClose) {
-        onClose();
-      }
-
+      if (onClose) onClose();
     } catch (error) {
       console.error("Error saving tobacco data:", error);
       alert(`Error: ${error.message}`);
@@ -143,10 +130,10 @@ const TobaccoUse = ({ onClose }) => {
     return (
       <div className="tobacco-use-panel">
         <div className="panel-header">
-          <h3>Tobacco Use(Smoking)</h3>
+          <h3>Tobacco Use (Smoking)</h3>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
-        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+        <div style={{ padding: "20px", textAlign: "center" }}>Loading...</div>
       </div>
     );
   }
@@ -154,28 +141,32 @@ const TobaccoUse = ({ onClose }) => {
   return (
     <div className="tobacco-use-panel">
       <div className="panel-header">
-        <h3>Tobacco Use(Smoking)</h3>
+        <h3>Tobacco Use (Smoking)</h3>
         <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">
         <label>Current Status</label>
-        <select 
-          name="status" 
-          value={formData.status} 
+        <select
+          name="status"
+          value={formData.status}
           onChange={handleInputChange}
           disabled={isSaving}
         >
-          <option>Current Smoker</option>
-          <option>Former Smoker</option>
-          <option>Never Smoked</option>
+          <option value="Current Smoker">Current Smoker</option>
+          <option value="Former Smoker">Former Smoker</option>
+          <option value="Never Smoked">Never Smoked</option>
         </select>
       </div>
 
       {(formData.status === "Current Smoker" || formData.status === "Former Smoker") && (
         <>
           <div className="form-group">
-            <label>Average Daily Consumption</label>
+            <label>
+              {formData.status === "Former Smoker"
+                ? "Average Daily Consumption (before quitting)"
+                : "Average Daily Consumption"}
+            </label>
             <input
               type="number"
               name="dailyConsumption"
@@ -187,8 +178,12 @@ const TobaccoUse = ({ onClose }) => {
           </div>
 
           <div className="form-group duration-group">
-            <label>Duration of Use</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <label>
+              {formData.status === "Former Smoker"
+                ? "Duration of Use (before quitting)"
+                : "Duration of Use"}
+            </label>
+            <div style={{ display: "flex", gap: "8px" }}>
               <input
                 type="number"
                 name="duration"
@@ -197,9 +192,9 @@ const TobaccoUse = ({ onClose }) => {
                 placeholder="Duration"
                 disabled={isSaving}
               />
-              <select 
-                name="durationUnit" 
-                value={formData.durationUnit} 
+              <select
+                name="durationUnit"
+                value={formData.durationUnit}
                 onChange={handleInputChange}
                 disabled={isSaving}
               >
@@ -210,20 +205,20 @@ const TobaccoUse = ({ onClose }) => {
               </select>
             </div>
           </div>
-
-          {formData.status === "Former Smoker" && (
-            <div className="form-group">
-              <label>Quit Date</label>
-              <input
-                type="date"
-                name="quitDate"
-                value={formData.quitDate}
-                onChange={handleInputChange}
-                disabled={isSaving}
-              />
-            </div>
-          )}
         </>
+      )}
+
+      {formData.status === "Former Smoker" && (
+        <div className="form-group">
+          <label>Quit Date</label>
+          <input
+            type="date"
+            name="quitDate"
+            value={formData.quitDate}
+            onChange={handleInputChange}
+            disabled={isSaving}
+          />
+        </div>
       )}
 
       <div className="form-group">
@@ -238,8 +233,8 @@ const TobaccoUse = ({ onClose }) => {
       </div>
 
       <div className="tobacco-buttons">
-        <button 
-          onClick={handleSave} 
+        <button
+          onClick={handleSave}
           className="save-btn"
           disabled={isSaving}
         >

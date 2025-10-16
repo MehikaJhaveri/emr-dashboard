@@ -62,7 +62,6 @@ export default function Assessment() {
 
   const handleSave = async () => {
   try {
-    // Get the stored patient ID
     const patientId = localStorage.getItem('currentPatientId');
 
     if (!patientId) {
@@ -71,24 +70,27 @@ export default function Assessment() {
       return;
     }
 
-    // Prepare data to send to backend
+    // Filter out empty tests and prepare data
+    const validTests = tests.filter(test => 
+      test.result && test.result.trim() !== ''
+    );
+
     const assessmentData = {
-      chiefComplaints: assessment.chiefComplaints,
-      historyOfPresentIllness: assessment.historyOfPresentIllness,
-      pastMedicalHistory: assessment.pastMedicalHistory,
-      medicationHistory: assessment.medicationHistory,
-      remindersAlerts: assessment.remindersAlerts,
-      planCare: assessment.planCare,
-      tests: tests.map(test => ({
-        result: test.result || '',
-        comment: test.comment || '',
-        fileId: null // You can add file upload logic later
+      chiefComplaints: assessment.chiefComplaints || '',
+      historyOfPresentIllness: assessment.historyOfPresentIllness || '',
+      pastMedicalHistory: assessment.pastMedicalHistory || '',
+      medicationHistory: assessment.medicationHistory || '',
+      remindersAlerts: assessment.remindersAlerts || '',
+      planCare: assessment.planCare || '',
+      tests: validTests.map(test => ({
+        result: test.result,
+        comment: test.comment || ''
       }))
     };
 
     console.log('Sending assessment data:', assessmentData);
+    console.log('Patient ID:', patientId);
 
-    // Use the /json endpoint since we're not uploading files
     const res = await fetch(`http://localhost:5000/api/assessment/${patientId}/json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -97,15 +99,20 @@ export default function Assessment() {
 
     const data = await res.json();
     console.log('Response:', data);
+    console.log('Response status:', res.status);
 
     if (res.ok) {
       alert('Assessment saved successfully!');
+      console.log('Total assessments:', data.totalAssessments);
       setShowPreview(false);
-      // Optional: Clear form or navigate
+      // Optional: Navigate to next page
       // navigate('/dashboard/medical-history');
     } else {
       alert(data.error || data.details || 'Failed to save assessment');
       console.error('Error details:', data);
+      if (data.validationErrors) {
+        console.error('Validation errors:', data.validationErrors);
+      }
     }
   } catch (err) {
     console.error('Error saving assessment:', err);
