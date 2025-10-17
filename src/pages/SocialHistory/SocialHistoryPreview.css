@@ -8,6 +8,7 @@
 .preview-header {
   display: flex;
   justify-content: space-between;
+  background-color: #ffffff;
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 15px;
