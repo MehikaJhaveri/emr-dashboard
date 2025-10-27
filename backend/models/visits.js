@@ -86,6 +86,54 @@ const visitSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  medication_history: [{
+    problem: {
+      type: String,
+      required: false,
+      minlength: 1,
+      maxlength: 100
+    },
+    medicine: {
+      type: String,
+      required: false,
+      minlength: 1,
+      maxlength: 100
+    },
+    dosage: {
+      type: Number,
+      required: false,
+      min: 0
+    },
+    dose_time: {
+      type: String,
+      required: false,
+      enum: [
+        "Morning", "Afternoon", "Evening",
+        "Night", "Before Meals", "After Meals", "With Meals"
+      ]
+    },
+    frequency: {
+      type: String,
+      required: false,
+      enum: [
+        "Once daily (OD)", "Twice daily (BD)", "Thrice daily (TDS)",
+        "Four times daily (QID)", "As needed (PRN)", "Weekly", "Monthly"
+      ]
+    },
+    duration: {
+      type: String,
+      required: false,
+      enum: [
+        "1 week", "2 weeks", "1 month",
+        "3 months", "6 months", "1 year", "Ongoing"
+      ]
+    },
+    status: {
+      type: String,
+      required: false,
+      enum: ["Active", "Inactive"]
+    }
+  }],
   appointment_date: {
     type: String,
     default: null,
