@@ -47,19 +47,28 @@ const NurseDashboard = () => {
   }, []);
 
   const handleAddPatient = () => {
+    console.log('Navigating to: /dashboard/patient-demographics');
     navigate('/dashboard/patient-demographics');
   };
 
   const handleNewVisit = () => {
-    navigate('/new-visit');
+    console.log('Navigating to: /new-visit with emergency visit');
+    navigate('/new-visit', { state: { visitType: 'Emergency Visit' } });
   };
 
   const handleNewAppointment = () => {
+    console.log('Navigating to: /new-appointment');
     navigate('/new-appointment');
   };
 
   const handleViewPatient = (patientId) => {
+    console.log('Navigating to: /patient/' + patientId);
     navigate(`/patient/${patientId}`);
+  };
+
+  const handleViewFullSchedule = () => {
+    console.log('Navigating to: /table-dashboard');
+    navigate('/table-dashboard');
   };
 
   const filteredPatients = patients.filter(patient =>
@@ -216,7 +225,9 @@ const NurseDashboard = () => {
                   <li className="no-data">No appointments found</li>
                 )}
               </ul>
-              <button className="view-schedule-btn">View Full Schedule</button>
+              <button className="view-schedule-btn" onClick={handleViewFullSchedule}>
+                View Full Schedule
+              </button>
             </div>
           </div>
         </div>

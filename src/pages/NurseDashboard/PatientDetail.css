@@ -15,6 +15,30 @@
   font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
+/* Back to Dashboard button */
+.pd-back-button-container {
+  margin-bottom: 16px;
+}
+
+.pd-back-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.pd-back-button:hover {
+  color: var(--teal);
+  text-decoration: underline;
+}
+
 /* Header card (white box with big avatar left, actions right) */
 .pd-header-card{
   background: var(--card-bg);

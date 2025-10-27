@@ -29,9 +29,40 @@ const PatientDetail = () => {
   }, [id]);
 
   const handleNewVisit = () => navigate('/new-visit');
-  const handleNewAppointment = () => navigate('/new-appointment');
-  // changed: this now goes to the add-patient form (same as "Add New Patient")
-  const handleAddNewPatient = () => navigate('/dashboard/patient-demographics');
+  
+  const handleNewAppointment = () => {
+    // Calculate age from DOB
+    const calculateAge = (dob) => {
+      const birthDate = new Date(dob.split('/').reverse().join('-'));
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    // Extract phone number (remove country code and formatting)
+    const extractPhoneNumber = (phone) => {
+      return phone.replace(/[^\d]/g, '').slice(-10);
+    };
+
+    // Navigate with patient data
+    navigate('/new-appointment', {
+      state: {
+        patientData: {
+          firstName: patient.first_name,
+          middleName: '',
+          lastName: patient.last_name,
+          age: calculateAge(patient.dob),
+          contactInfo: extractPhoneNumber(patient.phone)
+        }
+      }
+    });
+  };
+  
+  const handleGoToMessages = () => {}; // No functionality for now
   const handleEdit = () => navigate(`/patient/${id}/edit`);
   const handleBackToDashboard = () => navigate('/dashboard');
 
@@ -39,6 +70,13 @@ const PatientDetail = () => {
 
   return (
     <div className="pd-container">
+      {/* Back to Dashboard Button */}
+      <div className="pd-back-button-container">
+        <button className="pd-back-button" onClick={handleBackToDashboard}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       {/* Header Card */}
       <div className="pd-header-card">
         <div className="pd-header-left">
@@ -65,7 +103,7 @@ const PatientDetail = () => {
         <div className="pd-header-actions">
           <button className="pd-pill" onClick={handleNewVisit}>New Visit</button>
           <button className="pd-pill" onClick={handleNewAppointment}>New Appointment</button>
-          <button className="pd-pill" onClick={handleAddNewPatient}>+ Add New Patient</button>
+          <button className="pd-pill" onClick={handleGoToMessages}>Go To Messages</button>
         </div>
       </div>
 

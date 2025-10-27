@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './NewVisit.css';
 import logo from "../../assets/logo.jpg";
@@ -8,13 +8,14 @@ axios.defaults.baseURL = 'http://localhost:5000';
 
 const NewVisit = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
-    visitType: 'Regular Checkup',
+    visitType: location.state?.visitType || 'Emergency Visit',
     patientName: '',
     chiefComplaints: '',
     height: '',
@@ -35,11 +36,12 @@ const NewVisit = () => {
     followUpDate: '',
     totalCost: '',
     amountPaid: '',
-    balanceAmount: ''
+    balanceAmount: '',
+    status: 'pending'
   });
 
   const visitTypes = [
-    'Regular Checkup', 'Emergency Visit', 'Follow-up', 'Consultation',
+    'Emergency Visit', 'Regular Checkup', 'Follow-up', 'Consultation',
     'Physical Exam', 'Vaccination', 'Lab Results Review', 'Urgent Care',
     'Specialist Referral', 'Other'
   ];
@@ -82,10 +84,10 @@ const NewVisit = () => {
   };
 
   const nextStep = () => {
-    // Validate required fields before moving to next step
+    // Only validate patient name before moving to next step
     if (currentStep === 1) {
-      if (!formData.patientName || !formData.chiefComplaints) {
-        alert('Please fill in Patient Name and Chief Complaints');
+      if (!formData.patientName) {
+        alert('Please fill in Patient Name');
         return;
       }
     }
@@ -100,10 +102,35 @@ const NewVisit = () => {
     navigate('/dashboard/patient-demographics');
   };
 
+  // Check if form has minimal required data (only patient name)
+  const isFormMinimal = () => {
+    return formData.patientName && 
+           !formData.chiefComplaints &&
+           !formData.height &&
+           !formData.weight &&
+           !formData.bloodPressure &&
+           !formData.investigationRequest &&
+           !formData.treatment;
+  };
+
   const handleSubmit = async (status = 'saved') => {
+    // Validate patient name is filled
+    if (!formData.patientName) {
+      alert('Patient Name is required');
+      return;
+    }
+
     setLoading(true);
     
     try {
+      // Determine visit status based on form completeness
+      let visitStatus = status === 'complete' ? 'complete' : 'saved';
+      
+      // If form has only minimal data, mark as pending
+      if (isFormMinimal() && status !== 'complete') {
+        visitStatus = 'pending';
+      }
+
       // Prepare data for API
       const visitData = {
         visitType: formData.visitType,
@@ -126,18 +153,25 @@ const NewVisit = () => {
         followUpDate: formData.followUpDate,
         totalCost: formData.totalCost,
         amountPaid: formData.amountPaid,
-        balanceAmount: displayBalance || formData.balanceAmount
+        balanceAmount: displayBalance || formData.balanceAmount,
+        status: visitStatus
       };
 
       const response = await axios.post('/api/visits', visitData);
 
       if (response.data.success) {
-        alert(`Visit ${status === 'complete' ? 'saved and marked complete' : 'saved'} successfully!`);
+        const statusMessage = visitStatus === 'pending' 
+          ? 'saved as pending (incomplete information)' 
+          : visitStatus === 'complete' 
+            ? 'saved and marked complete' 
+            : 'saved';
+        
+        alert(`Visit ${statusMessage} successfully!`);
         console.log('Visit created with ID:', response.data.visitId);
         
         // Reset form or navigate away
         setFormData({
-          visitType: 'Regular Checkup',
+          visitType: 'Emergency Visit',
           patientName: '',
           chiefComplaints: '',
           height: '',
@@ -158,7 +192,8 @@ const NewVisit = () => {
           followUpDate: '',
           totalCost: '',
           amountPaid: '',
-          balanceAmount: ''
+          balanceAmount: '',
+          status: 'pending'
         });
         setCurrentStep(1);
         
@@ -263,13 +298,12 @@ const NewVisit = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Chief Complaints <span style={{color: 'red'}}>*</span></label>
+                  <label>Chief Complaints</label>
                   <textarea
                     value={formData.chiefComplaints}
                     onChange={(e) => handleInputChange('chiefComplaints', e.target.value)}
                     rows="3"
                     placeholder="Describe the main complaints"
-                    required
                   />
                 </div>
 

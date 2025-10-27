@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NewAppointment.css';
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import axios from 'axios';
 import logo from "../../assets/logo.jpg";
 
@@ -8,6 +8,7 @@ axios.defaults.baseURL = 'http://localhost:5000';
 
 const NewAppointment = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +33,21 @@ const NewAppointment = () => {
   useEffect(() => {
     fetchPatients();
   }, []);
+
+  // Prefill data if coming from PatientDetail
+  useEffect(() => {
+    if (location.state?.patientData) {
+      const { patientData } = location.state;
+      setFormData(prevData => ({
+        ...prevData,
+        firstName: patientData.firstName || '',
+        middleName: patientData.middleName || '',
+        lastName: patientData.lastName || '',
+        age: patientData.age || '',
+        contactInfo: patientData.contactInfo || ''
+      }));
+    }
+  }, [location.state]);
 
   const fetchPatients = async () => {
     try {
@@ -113,9 +129,6 @@ const NewAppointment = () => {
           comments: ''
         });
         setSelectedPatient(null);
-        
-        // Navigate to table dashboard
-        navigate("/table-dashboard");
       }
     } catch (error) {
       console.error('Error creating appointment:', error);
