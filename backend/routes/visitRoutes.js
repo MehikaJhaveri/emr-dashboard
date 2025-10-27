@@ -6,6 +6,8 @@ import Patient from '../models/patients.js';
 const router = express.Router();
 
 // Create a new visit
+// REPLACE your POST /visits route with this improved version
+
 router.post('/visits', async (req, res) => {
   try {
     const {
@@ -25,6 +27,7 @@ router.post('/visits', async (req, res) => {
       icdQuickest,
       icdFull,
       treatment,
+      medications,
       seenBy,
       followUpDate,
       totalCost,
@@ -43,11 +46,42 @@ router.post('/visits', async (req, res) => {
     // Generate a new patient_id for every visit
     const generatedPatientId = new mongoose.Types.ObjectId();
 
+    // Process medications if provided - IMPROVED VALIDATION
+    let formattedMedications = [];
+    if (medications && Array.isArray(medications)) {
+      formattedMedications = medications
+        // First filter out completely empty rows
+        .filter(med => {
+          const hasProblem = med.problem && med.problem.trim();
+          const hasMedicine = med.medicine && med.medicine.trim();
+          const hasDosage = med.mg && med.mg.toString().trim();
+          return hasProblem || hasMedicine || hasDosage;
+        })
+        // Then map to the correct format
+        .map(med => {
+          // Ensure all required fields have values or defaults
+          return {
+            problem: med.problem?.trim() || '',
+            medicine: med.medicine?.trim() || '',
+            dosage: med.mg ? parseFloat(med.mg) : 0,
+            dose_time: med.doseTime?.trim() || '',
+            frequency: med.frequency?.trim() || '',
+            duration: med.timePeriod?.trim() || '',
+            status: med.status ? 'Active' : 'Inactive'
+          };
+        })
+        // Filter out any medications that still don't have the minimum required data
+        .filter(med => {
+          // Only include medications that have at least problem, medicine, and dosage
+          return med.problem && med.medicine && med.dosage > 0;
+        });
+    }
+
     // Create visit object
     const visitData = {
       visit_type: visitType,
       patient_name: patientName,
-      patient_id: generatedPatientId, // Always generate new ObjectId
+      patient_id: generatedPatientId,
       chief_complaints: chiefComplaints,
       vitals: {
         height: height ? parseFloat(height) : null,
@@ -65,6 +99,7 @@ router.post('/visits', async (req, res) => {
         full_icd10_list: icdFull || null
       },
       treatment: treatment || null,
+      medication_history: formattedMedications,
       seen_by: seenBy || null,
       appointment_date: followUpDate ? formatDateToMMDDYYYY(followUpDate) : null,
       billing: {
@@ -75,7 +110,7 @@ router.post('/visits', async (req, res) => {
       notes: notes || null
     };
 
-    // Create new visit (MongoDB will auto-generate _id as visitId)
+    // Create new visit
     const newVisit = new Visit(visitData);
     const savedVisit = await newVisit.save();
 
@@ -84,11 +119,23 @@ router.post('/visits', async (req, res) => {
       message: 'Visit created successfully',
       data: savedVisit,
       visitId: savedVisit._id,
-      patientId: generatedPatientId
+      patientId: generatedPatientId,
+      medicationCount: formattedMedications.length
     });
 
   } catch (error) {
     console.error('Error creating visit:', error);
+    
+    // Better error handling
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: errors
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Error creating visit',
@@ -340,6 +387,322 @@ router.get('/visits/stats/overview', async (req, res) => {
     });
   }
 });
+
+// Add these routes to your visitsRoutes.js file
+
+// ============ MEDICATION HISTORY ROUTES ============
+
+// Add medication to a visit
+router.post('/visits/:visitId/medications', async (req, res) => {
+  try {
+    const { visitId } = req.params;
+    const medications = req.body.medications; // Array of medication objects
+
+    // Validate visit exists
+    const visit = await Visit.findById(visitId);
+    if (!visit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visit not found'
+      });
+    }
+
+    // Validate medications array
+    if (!Array.isArray(medications) || medications.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Medications array is required and cannot be empty'
+      });
+    }
+
+    // Transform and validate each medication
+    const formattedMedications = medications.map(med => {
+      // Skip empty rows
+      if (!med.problem?.trim() && !med.medicine?.trim() && !med.mg?.trim()) {
+        return null;
+      }
+
+      // Validate required fields
+      if (!med.problem || !med.medicine || !med.mg) {
+        throw new Error('Problem, medicine, and dosage are required for each medication');
+      }
+
+      return {
+        problem: med.problem.trim(),
+        medicine: med.medicine.trim(),
+        dosage: parseFloat(med.mg),
+        dose_time: med.doseTime || '',
+        frequency: med.frequency || '',
+        duration: med.timePeriod || '',
+        status: med.status ? 'Active' : 'Inactive'
+      };
+    }).filter(med => med !== null); // Remove null entries
+
+    // Add medications to visit
+    visit.medication_history = formattedMedications;
+    const updatedVisit = await visit.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Medications added successfully',
+      data: updatedVisit
+    });
+
+  } catch (error) {
+    console.error('Error adding medications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding medications',
+      error: error.message
+    });
+  }
+});
+
+// Get all medications for a visit
+router.get('/visits/:visitId/medications', async (req, res) => {
+  try {
+    const { visitId } = req.params;
+
+    const visit = await Visit.findById(visitId);
+    if (!visit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visit not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: visit.medication_history?.length || 0,
+      data: visit.medication_history || []
+    });
+
+  } catch (error) {
+    console.error('Error fetching medications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching medications',
+      error: error.message
+    });
+  }
+});
+
+// Update a specific medication in a visit
+router.put('/visits/:visitId/medications/:medicationId', async (req, res) => {
+  try {
+    const { visitId, medicationId } = req.params;
+    const medicationUpdate = req.body;
+
+    const visit = await Visit.findById(visitId);
+    if (!visit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visit not found'
+      });
+    }
+
+    // Find medication by _id in the array
+    const medication = visit.medication_history.id(medicationId);
+    if (!medication) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medication not found'
+      });
+    }
+
+    // Update fields
+    if (medicationUpdate.problem) medication.problem = medicationUpdate.problem;
+    if (medicationUpdate.medicine) medication.medicine = medicationUpdate.medicine;
+    if (medicationUpdate.mg) medication.dosage = parseFloat(medicationUpdate.mg);
+    if (medicationUpdate.doseTime) medication.dose_time = medicationUpdate.doseTime;
+    if (medicationUpdate.frequency) medication.frequency = medicationUpdate.frequency;
+    if (medicationUpdate.timePeriod) medication.duration = medicationUpdate.timePeriod;
+    if (medicationUpdate.status !== undefined) {
+      medication.status = medicationUpdate.status ? 'Active' : 'Inactive';
+    }
+
+    const updatedVisit = await visit.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Medication updated successfully',
+      data: updatedVisit
+    });
+
+  } catch (error) {
+    console.error('Error updating medication:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating medication',
+      error: error.message
+    });
+  }
+});
+
+// Delete a specific medication from a visit
+router.delete('/visits/:visitId/medications/:medicationId', async (req, res) => {
+  try {
+    const { visitId, medicationId } = req.params;
+
+    const visit = await Visit.findById(visitId);
+    if (!visit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visit not found'
+      });
+    }
+
+    // Remove medication by _id
+    const medication = visit.medication_history.id(medicationId);
+    if (!medication) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medication not found'
+      });
+    }
+
+    medication.remove();
+    const updatedVisit = await visit.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Medication deleted successfully',
+      data: updatedVisit
+    });
+
+  } catch (error) {
+    console.error('Error deleting medication:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting medication',
+      error: error.message
+    });
+  }
+});
+
+// Get active medications for a visit
+router.get('/visits/:visitId/medications/active', async (req, res) => {
+  try {
+    const { visitId } = req.params;
+
+    const visit = await Visit.findById(visitId);
+    if (!visit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visit not found'
+      });
+    }
+
+    const activeMedications = visit.medication_history?.filter(
+      med => med.status === 'Active'
+    ) || [];
+
+    res.status(200).json({
+      success: true,
+      count: activeMedications.length,
+      data: activeMedications
+    });
+
+  } catch (error) {
+    console.error('Error fetching active medications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching active medications',
+      error: error.message
+    });
+  }
+});
+
+// Get all medications for a patient (across all visits)
+router.get('/patients/:patientId/medications', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { status } = req.query; // Optional: filter by status (Active/Inactive)
+
+    const visits = await Visit.find({ patient_id: patientId });
+
+    let allMedications = [];
+    visits.forEach(visit => {
+      if (visit.medication_history && visit.medication_history.length > 0) {
+        visit.medication_history.forEach(med => {
+          allMedications.push({
+            ...med.toObject(),
+            visitId: visit._id,
+            visitDate: visit.createdAt,
+            visitType: visit.visit_type
+          });
+        });
+      }
+    });
+
+    // Filter by status if provided
+    if (status) {
+      allMedications = allMedications.filter(med => med.status === status);
+    }
+
+    // Sort by visit date (most recent first)
+    allMedications.sort((a, b) => new Date(b.visitDate) - new Date(a.visitDate));
+
+    res.status(200).json({
+      success: true,
+      count: allMedications.length,
+      data: allMedications
+    });
+
+  } catch (error) {
+    console.error('Error fetching patient medications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching patient medications',
+      error: error.message
+    });
+  }
+});
+
+// Update medication status (toggle Active/Inactive)
+router.patch('/visits/:visitId/medications/:medicationId/status', async (req, res) => {
+  try {
+    const { visitId, medicationId } = req.params;
+    const { status } = req.body; // Expected: true for Active, false for Inactive
+
+    const visit = await Visit.findById(visitId);
+    if (!visit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visit not found'
+      });
+    }
+
+    const medication = visit.medication_history.id(medicationId);
+    if (!medication) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medication not found'
+      });
+    }
+
+    medication.status = status ? 'Active' : 'Inactive';
+    const updatedVisit = await visit.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Medication status updated successfully',
+      data: {
+        medicationId: medication._id,
+        status: medication.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating medication status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating medication status',
+      error: error.message
+    });
+  }
+});
+
 
 // Helper function to format date
 function formatDateToMMDDYYYY(dateString) {
