@@ -6,6 +6,16 @@ import logo from "../../assets/logo.jpg";
 
 axios.defaults.baseURL = 'http://localhost:5000';
 
+const emptyMedRow = () => ({
+  problem: "",
+  medicine: "",
+  mg: "",
+  doseTime: "",
+  frequency: "",
+  timePeriod: "",
+  status: false
+});
+
 const NewVisit = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,6 +24,7 @@ const NewVisit = () => {
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [medications, setMedications] = useState([emptyMedRow()]);
   const [formData, setFormData] = useState({
     visitType: location.state?.visitType || 'Emergency Visit',
     patientName: '',
@@ -83,6 +94,28 @@ const NewVisit = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Medication handlers
+  const handleMedChange = (index, field, value) => {
+    setMedications((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const toggleMedStatus = (index) => {
+    setMedications((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], status: !copy[index].status };
+      return copy;
+    });
+  };
+
+  const addMedRow = () => setMedications((prev) => [...prev, emptyMedRow()]);
+  
+  const removeMedRow = (index) =>
+    setMedications((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+
   const nextStep = () => {
     // Only validate patient name before moving to next step
     if (currentStep === 1) {
@@ -91,7 +124,7 @@ const NewVisit = () => {
         return;
       }
     }
-    if (currentStep < 3) setCurrentStep(currentStep + 1);
+    if (currentStep < 4) setCurrentStep(currentStep + 1);
   };
 
   const prevStep = () => {
@@ -110,7 +143,8 @@ const NewVisit = () => {
            !formData.weight &&
            !formData.bloodPressure &&
            !formData.investigationRequest &&
-           !formData.treatment;
+           !formData.treatment &&
+           medications.every(m => !m.problem && !m.medicine && !m.mg);
   };
 
   const handleSubmit = async (status = 'saved') => {
@@ -149,6 +183,9 @@ const NewVisit = () => {
         icdQuickest: formData.icdQuickest,
         icdFull: formData.icdFull,
         treatment: formData.treatment,
+        medications: medications.filter(m => 
+          m.problem?.trim() || m.medicine?.trim() || m.mg?.trim()
+        ),
         seenBy: formData.seenBy,
         followUpDate: formData.followUpDate,
         totalCost: formData.totalCost,
@@ -195,6 +232,7 @@ const NewVisit = () => {
           balanceAmount: '',
           status: 'pending'
         });
+        setMedications([emptyMedRow()]);
         setCurrentStep(1);
         
         // Optionally navigate to visits list or dashboard
@@ -272,7 +310,7 @@ const NewVisit = () => {
         <main className="main-content">
           <h2 className="page-title">New Visit</h2>
 
-          {/* STEP 1 */}
+          {/* STEP 1 - PATIENT INFO & VITALS */}
           {currentStep === 1 && (
             <>
               <div className="form-card">
@@ -411,7 +449,7 @@ const NewVisit = () => {
             </>
           )}
 
-          {/* STEP 2 */}
+          {/* STEP 2 - INVESTIGATION & DIAGNOSIS */}
           {currentStep === 2 && (
             <div className="form-card">
               <div className="form-group">
@@ -471,8 +509,138 @@ const NewVisit = () => {
             </div>
           )}
 
-          {/* STEP 3 */}
+          {/* STEP 3 - MEDICATION HISTORY */}
           {currentStep === 3 && (
+            <div className="form-card">
+              <h3>Medication History</h3>
+              <div className="medication-table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Problem</th>
+                      <th>Medicine</th>
+                      <th>Dosage</th>
+                      <th>Dose Time</th>
+                      <th>Frequency</th>
+                      <th>Duration</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {medications.map((med, index) => (
+                      <tr key={index} className={med.status ? 'active-med-row' : ''}>
+                        <td>
+                          <input
+                            type="text"
+                            value={med.problem}
+                            placeholder="e.g. Hypertension"
+                            onChange={(e) => handleMedChange(index, "problem", e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={med.medicine}
+                            placeholder="e.g. Amlodipine"
+                            onChange={(e) => handleMedChange(index, "medicine", e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <div className="dosage-input-wrapper">
+                            <input
+                              type="text"
+                              value={med.mg}
+                              placeholder="5"
+                              onChange={(e) => handleMedChange(index, "mg", e.target.value)}
+                            />
+                            <span>mg</span>
+                          </div>
+                        </td>
+                        <td>
+                          <select
+                            value={med.doseTime}
+                            onChange={(e) => handleMedChange(index, "doseTime", e.target.value)}
+                          >
+                            <option value="">Select</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Afternoon">Afternoon</option>
+                            <option value="Evening">Evening</option>
+                            <option value="Night">Night</option>
+                            <option value="Before Meals">Before Meals</option>
+                            <option value="After Meals">After Meals</option>
+                            <option value="With Meals">With Meals</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            value={med.frequency}
+                            onChange={(e) => handleMedChange(index, "frequency", e.target.value)}
+                          >
+                            <option value="">Select</option>
+                            <option value="Once daily (OD)">Once daily (OD)</option>
+                            <option value="Twice daily (BD)">Twice daily (BD)</option>
+                            <option value="Thrice daily (TDS)">Thrice daily (TDS)</option>
+                            <option value="Four times daily (QID)">Four times daily (QID)</option>
+                            <option value="As needed (PRN)">As needed (PRN)</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Monthly">Monthly</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            value={med.timePeriod}
+                            onChange={(e) => handleMedChange(index, "timePeriod", e.target.value)}
+                          >
+                            <option value="">Select</option>
+                            <option value="1 week">1 week</option>
+                            <option value="2 weeks">2 weeks</option>
+                            <option value="1 month">1 month</option>
+                            <option value="3 months">3 months</option>
+                            <option value="6 months">6 months</option>
+                            <option value="1 year">1 year</option>
+                            <option value="Ongoing">Ongoing</option>
+                          </select>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`med-status-btn ${med.status ? 'active' : 'inactive'}`}
+                            onClick={() => toggleMedStatus(index)}
+                          >
+                            {med.status ? "Active" : "Inactive"}
+                          </button>
+                        </td>
+                        <td>
+                          <div className="med-action-buttons">
+                            <button
+                              type="button"
+                              className="med-add-btn"
+                              onClick={addMedRow}
+                            >
+                              +
+                            </button>
+                            {medications.length > 1 && (
+                              <button
+                                type="button"
+                                className="med-remove-btn"
+                                onClick={() => removeMedRow(index)}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4 - PAYMENT & COMPLETION */}
+          {currentStep === 4 && (
             <div className="form-card">
               <div className="form-group">
                 <label>Follow-up Appointment</label>
@@ -539,13 +707,14 @@ const NewVisit = () => {
           <div className="form-nav">
             {currentStep > 1 && <button className="btn-outline" onClick={prevStep}>Previous</button>}
             <div className="spacer" />
-            {currentStep < 3 ? <button className="btn-primary" onClick={nextStep}>Next</button> : null}
+            {currentStep < 4 ? <button className="btn-primary" onClick={nextStep}>Next</button> : null}
           </div>
 
           <div className="step-indicator">
             <div className={`step-dot ${currentStep >= 1 ? 'active' : ''}`} />
             <div className={`step-dot ${currentStep >= 2 ? 'active' : ''}`} />
             <div className={`step-dot ${currentStep >= 3 ? 'active' : ''}`} />
+            <div className={`step-dot ${currentStep >= 4 ? 'active' : ''}`} />
           </div>
         </main>
       </div>

@@ -38,6 +38,7 @@ const patientSchema = new Schema({
   address: {
     type: {
       street: { type: String },
+      street2: { type: String },
       city: { type: String, required: true },
       postal_code: { type: String, required: true },
       district: { type: String, required: true },
@@ -288,11 +289,10 @@ family_history: {
         affected_family_member: {
           type: String,
           enum: [
-            'Paternal Grandfather', 'Paternal Grandmother', 'Maternal Grandfather',
-            'Maternal Grandmother', 'Paternal Uncle', 'Paternal Aunt',
-            'Maternal Uncle', 'Maternal Aunt', 'Father', 'Mother',
-            'Brother', 'Sister', 'Self', 'Other'
-          ], 
+          'Father', 'Mother', 'Brother', 'Sister', 'Son', 'Daughter',
+          'Grandfather', 'Grandmother', 'Uncle', 'Aunt', 'Cousin',
+          'Nephew', 'Niece', 'Spouse', 'Other'
+        ], 
           required: true
         },
         genetic_testing_results: {
@@ -495,6 +495,5 @@ family_history: {
   timestamps: true
 });
 
-const Patient = mongoose.model('Patient', patientSchema);
-
-export default Patient;
+// At the end of models/patients.js
+export default mongoose.models.Patient || mongoose.model('Patient', patientSchema);

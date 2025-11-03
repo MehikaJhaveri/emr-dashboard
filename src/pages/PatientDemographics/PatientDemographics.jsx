@@ -42,6 +42,54 @@ const PatientDemographics = () => {
     };
   }, [imagePreview]);
 
+  // Load existing patient data from database
+  useEffect(() => {
+    const loadExistingData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      if (!patientId) return;
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/patient-demographics/${patientId}`);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.success && json.data) {
+            const data = json.data;
+            setFormData({
+              firstName: data.name?.first || "",
+              middleName: data.name?.middle || "",
+              lastName: data.name?.last || "",
+              dob: data.date_of_birth ? convertDateFormatForInput(data.date_of_birth) : "",
+              gender: data.gender || "",
+              address1: data.address?.street || "",
+              address2: data.address?.street2 || "", // FIXED: Now properly loading street2
+              city: data.address?.city || "",
+              postalCode: data.address?.postal_code || "",
+              district: data.address?.district || "",
+              state: data.address?.state || "",
+              country: data.address?.country || "",
+              bloodGroup: data.blood_group || "",
+              occupation: data.occupation || "",
+              aadharNumber: data.aadhaar || "",
+              panNumber: data.pan || "",
+              photo: null,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading patient data:", error);
+      }
+    };
+
+    loadExistingData();
+  }, []);
+
+  // Helper function to convert MM-DD-YYYY to YYYY-MM-DD for input
+  const convertDateFormatForInput = (dateStr) => {
+    if (!dateStr) return "";
+    const [month, day, year] = dateStr.split("-");
+    return `${year}-${month}-${day}`;
+  };
+
   const fetchLocationData = async (postalCode) => {
     if (!postalCode || postalCode.length < 5) return;
 
@@ -130,6 +178,7 @@ const PatientDemographics = () => {
   const handleSave = async () => {
     if (validateForm()) {
       try {
+        const patientId = localStorage.getItem('currentPatientId');
         const formDataToSend = new FormData();
         
         // Append all form fields
@@ -141,21 +190,30 @@ const PatientDemographics = () => {
           }
         });
 
-        const response = await fetch("http://localhost:5000/api/patient-demographics", {
-          method: "POST",
+        // Use PUT for updates, POST for new patients
+        const method = patientId ? 'PUT' : 'POST';
+        const url = patientId 
+          ? `http://localhost:5000/api/patient-demographics/${patientId}`
+          : "http://localhost:5000/api/patient-demographics";
+
+        const response = await fetch(url, {
+          method,
           body: formDataToSend // Don't set Content-Type header for FormData
         });
 
         if (response.ok) {
           const result = await response.json();
-          localStorage.setItem('currentPatientId', result.data.id);
+          if (!patientId) {
+            localStorage.setItem('currentPatientId', result.data.id);
+          }
 
-          alert("Patient demographics saved successfully!");
+          alert(patientId ? "Patient demographics updated successfully!" : "Patient demographics saved successfully!");
           updatePreviewData(formData, "patient");
           setShowPreview(false);
           // Reset form if needed...
         } else {
-          alert("Failed to save patient demographics");
+          const errorData = await response.json();
+          alert(errorData.message || "Failed to save patient demographics");
         }
       } catch (error) {
         console.error("Error saving data:", error);

@@ -139,3 +139,108 @@ section p strong {
 .preview-next-button:active {
   transform: translateY(0);
 }
+
+/* Insurance Section Styles */
+.insurance-section {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+.insurance-section h4 {
+  color: #1e88e5;
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+}
+
+/* Allergy Item Styles */
+.allergy-item {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+.allergy-item h4 {
+  color: #1e88e5;
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+}
+
+/* Family History Styles */
+.family-member-section {
+  margin-bottom: 20px;
+}
+
+.family-member-section h4 {
+  color: #1e88e5;
+  margin: 0 0 10px 0;
+}
+
+.family-member-item {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+.family-member-item h5 {
+  color: #1e88e5;
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+}
+
+.genetic-conditions-section {
+  margin-top: 20px;
+}
+
+.genetic-conditions-section h4 {
+  color: #1e88e5;
+  margin: 0 0 10px 0;
+}
+
+.genetic-condition-item {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+/* Social History Styles */
+.social-subsection {
+  margin-bottom: 20px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+.social-subsection h4 {
+  color: #1e88e5;
+  margin: 0 0 10px 0;
+  font-size: 0.95rem;
+}
+
+/* Edit Button Styles */
+.edit-button {
+  background-color: #1e88e5;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(30, 136, 229, 0.3);
+}
+
+.edit-button:hover {
+  background-color: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(30, 136, 229, 0.4);
+}
+
+.edit-button:active {
+  transform: translateY(0);
+}

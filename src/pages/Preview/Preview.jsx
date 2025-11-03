@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import './Preview.css';
 
@@ -8,37 +8,179 @@ export default function Preview() {
   const {
     patientData = {},
     contactData = {},
-    insuranceData = {},
-    ailmentsData = [],
-    assessmentData = {},
-    medicationHistory = [],
-    vitalsData = []
+    insuranceData = {}
   } = outlet;
 
   const navigate = useNavigate();
+  const patientId = typeof window !== 'undefined' ? localStorage.getItem("currentPatientId") : null;
+  
+  // State for fetching all data from backend
+  const [patientDataLoaded, setPatientDataLoaded] = useState(patientData);
+  const [contactDataLoaded, setContactDataLoaded] = useState(contactData);
+  const [insuranceDataLoaded, setInsuranceDataLoaded] = useState(insuranceData);
+  const [allergiesData, setAllergiesData] = useState([]);
+  const [familyHistoryData, setFamilyHistoryData] = useState({ familyMembers: [], geneticConditions: [] });
+  const [socialHistoryData, setSocialHistoryData] = useState(null);
+
+  // Fetch allergies, family history, and social history data
+  useEffect(() => {
+    if (!patientId) return;
+
+    const fetchData = async () => {
+      try {
+        // Fetch patient demographics
+        const patientRes = await fetch(`http://localhost:5000/api/patient-demographics/${patientId}`);
+        if (patientRes.ok) {
+          const patientJson = await patientRes.json();
+          if (patientJson.success && patientJson.data) {
+            setPatientDataLoaded(patientJson.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+      }
+
+      try {
+        // Fetch contact information
+        const contactRes = await fetch(`http://localhost:5000/api/contact-information/${patientId}`);
+        if (contactRes.ok) {
+          const contactJson = await contactRes.json();
+          if (contactJson.success && contactJson.data) {
+            setContactDataLoaded({
+              contact_info: contactJson.data.contact_info,
+              id: contactJson.data.id
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching contact data:', error);
+      }
+
+      try {
+        // Fetch insurance information
+        const insuranceRes = await fetch(`http://localhost:5000/api/insurance/${patientId}`);
+        if (insuranceRes.ok) {
+          const insuranceJson = await insuranceRes.json();
+          if (insuranceJson.insurance) {
+            setInsuranceDataLoaded({
+              insurance: insuranceJson.insurance,
+              id: insuranceJson.patient_id
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching insurance data:', error);
+      }
+
+      try {
+        // Fetch allergies
+        const allergiesRes = await fetch(`http://localhost:5000/api/allergies/${patientId}`);
+        if (allergiesRes.ok) {
+          const allergiesJson = await allergiesRes.json();
+          if (allergiesJson.success) {
+            setAllergiesData(allergiesJson.data || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching allergies:', error);
+      }
+
+      try {
+        // Fetch family history
+        const familyHistoryRes = await fetch(`http://localhost:5000/api/family-history/${patientId}`);
+        if (familyHistoryRes.ok) {
+          const familyHistoryJson = await familyHistoryRes.json();
+          if (familyHistoryJson.success) {
+            setFamilyHistoryData(familyHistoryJson.data || { familyMembers: [], geneticConditions: [] });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching family history:', error);
+      }
+
+      try {
+        // Fetch social history - tobacco smoking
+        const tobaccoSmokingRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/tobacco-smoking`);
+        const tobaccoConsumptionRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/tobacco-consumption`);
+        const alcoholRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/alcohol`);
+        const socialTextRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/social-text`);
+        const financialRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/financial-resources`);
+        const educationRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/education`);
+        const physicalActivityRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/physical-activity`);
+        const stressRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/stress`);
+        const socialIsolationRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/social-isolation`);
+        const exposureToViolenceRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/exposure-to-violence`);
+        const genderIdentityRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/gender-identity`);
+        const sexualOrientationRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/sexual-orientation`);
+        const nutrientsRes = await fetch(`http://localhost:5000/api/social-history/${patientId}/nutrients-history`);
+
+        const results = await Promise.all([
+          tobaccoSmokingRes.ok ? tobaccoSmokingRes.json() : null,
+          tobaccoConsumptionRes.ok ? tobaccoConsumptionRes.json() : null,
+          alcoholRes.ok ? alcoholRes.json() : null,
+          socialTextRes.ok ? socialTextRes.json() : null,
+          financialRes.ok ? financialRes.json() : null,
+          educationRes.ok ? educationRes.json() : null,
+          physicalActivityRes.ok ? physicalActivityRes.json() : null,
+          stressRes.ok ? stressRes.json() : null,
+          socialIsolationRes.ok ? socialIsolationRes.json() : null,
+          exposureToViolenceRes.ok ? exposureToViolenceRes.json() : null,
+          genderIdentityRes.ok ? genderIdentityRes.json() : null,
+          sexualOrientationRes.ok ? sexualOrientationRes.json() : null,
+          nutrientsRes.ok ? nutrientsRes.json() : null
+        ]);
+
+        if (results.some(r => r && r.success)) {
+          setSocialHistoryData({
+            tobaccoSmoking: results[0]?.data,
+            tobaccoConsumption: results[1]?.data,
+            alcohol: results[2]?.data,
+            socialText: results[3]?.data,
+            financial: results[4]?.data,
+            education: results[5]?.data,
+            physicalActivity: results[6]?.data,
+            stress: results[7]?.data,
+            socialIsolation: results[8]?.data,
+            exposureToViolence: results[9]?.data,
+            genderIdentity: results[10]?.data,
+            sexualOrientation: results[11]?.data,
+            nutrients: results[12]?.data
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching social history:', error);
+      }
+    };
+
+    fetchData();
+  }, [patientId]);
 
   const handleNext = () => {
     navigate('/dashboard/consent');
   };
 
-  const getPainLevelText = (value) => {
-    const painLevels = [
-      'No pain',
-      'Very mild',
-      'Mild',
-      'Moderate',
-      'Moderately severe',
-      'Severe',
-      'Very severe',
-      'Intense',
-      'Very intense',
-      'Excruciating',
-      'Unimaginable'
-    ];
+  const handleEditDemographics = () => {
+    navigate('/dashboard/patient-demographics');
+  };
 
-    const idx = parseInt(value, 10);
-    if (Number.isNaN(idx)) return '';
-    return painLevels[idx] || '';
+  const handleEditContact = () => {
+    navigate('/dashboard/contact-information');
+  };
+
+  const handleEditInsurance = () => {
+    navigate('/dashboard/insurance-information');
+  };
+
+  const handleEditAllergies = () => {
+    navigate('/dashboard/allergies');
+  };
+
+  const handleEditFamilyHistory = () => {
+    navigate('/dashboard/family-history');
+  };
+
+  const handleEditSocialHistory = () => {
+    navigate('/dashboard/social-history');
   };
 
   const formatDate = (dateString) => {
@@ -65,198 +207,254 @@ export default function Preview() {
       <h2>Review Your Info</h2>
 
       {/* Demographics Section */}
-      {patientData && Object.keys(patientData).length > 0 && (
+      {(patientDataLoaded && Object.keys(patientDataLoaded).length > 0) || (patientData && Object.keys(patientData).length > 0) ? (
         <section>
-          <h3>Demographics</h3>
-          <p>
-            <strong>Name:</strong>{' '}
-            {[
-              patientData.firstName,
-              patientData.middleName,
-              patientData.lastName
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          </p>
-          {patientData.dob && <p><strong>DOB:</strong> {patientData.dob}</p>}
-          {patientData.gender && <p><strong>Gender:</strong> {patientData.gender}</p>}
-          {patientData.address1 && (
-            <p>
-              <strong>Address:</strong>{' '}
-              {[
-                patientData.address1,
-                patientData.address2,
-                patientData.city,
-                patientData.postalCode,
-                patientData.state,
-                patientData.country
-              ]
-                .filter(Boolean)
-                .join(', ')}
-            </p>
-          )}
-          {patientData.bloodGroup && <p><strong>Blood Group:</strong> {patientData.bloodGroup}</p>}
-          {patientData.occupation && <p><strong>Occupation:</strong> {patientData.occupation}</p>}
-          {patientData.aadharNumber && <p><strong>Aadhar No.:</strong> {patientData.aadharNumber}</p>}
-          {patientData.panNumber && <p><strong>PAN No.:</strong> {patientData.panNumber}</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Demographics</h3>
+            <button onClick={handleEditDemographics} className="edit-button">Edit</button>
+          </div>
+          {(() => {
+            const data = patientDataLoaded || patientData;
+            // Map nested schema data to flat structure if needed
+            const firstName = data.name?.first || data.firstName;
+            const middleName = data.name?.middle || data.middleName;
+            const lastName = data.name?.last || data.lastName;
+            const dob = data.date_of_birth || data.dob;
+            const gender = data.gender;
+            const bloodGroup = data.blood_group || data.bloodGroup;
+            const occupation = data.occupation;
+            const aadharNumber = data.aadhaar || data.aadharNumber;
+            const panNumber = data.pan || data.panNumber;
+            
+            // Handle address - can be nested or flat
+            const address1 = data.address?.street || data.address1 || '';
+            const address2 = data.address?.city || data.address2 || '';
+            const city = data.address?.city || data.city || '';
+            const postalCode = data.address?.postal_code || data.postalCode || '';
+            const district = data.address?.district || data.district || '';
+            const state = data.address?.state || data.state || '';
+            const country = data.address?.country || data.country || '';
+
+            return (
+              <>
+                <p>
+                  <strong>Name:</strong>{' '}
+                  {[
+                    firstName,
+                    middleName,
+                    lastName
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                </p>
+                {dob && <p><strong>DOB:</strong> {dob}</p>}
+                {gender && <p><strong>Gender:</strong> {gender}</p>}
+                {(address1 || city) && (
+                  <p>
+                    <strong>Address:</strong>{' '}
+                    {[
+                      address1,
+                      city,
+                      district,
+                      state,
+                      country,
+                      postalCode
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </p>
+                )}
+                {bloodGroup && <p><strong>Blood Group:</strong> {bloodGroup}</p>}
+                {occupation && <p><strong>Occupation:</strong> {occupation}</p>}
+                {aadharNumber && <p><strong>Aadhar No.:</strong> {aadharNumber}</p>}
+                {panNumber && <p><strong>PAN No.:</strong> {panNumber}</p>}
+              </>
+            );
+          })()}
         </section>
-      )}
+      ) : null}
 
       {/* Contact Section */}
-      {contactData && Object.keys(contactData).length > 0 && (
+      {(contactDataLoaded && Object.keys(contactDataLoaded).length > 0) || (contactData && Object.keys(contactData).length > 0) ? (
         <section>
-          <h3>Contact</h3>
-          {contactData.mobilePhone && <p><strong>Mobile:</strong> {contactData.mobilePhone}</p>}
-          {contactData.homePhone && <p><strong>Home:</strong> {contactData.homePhone}</p>}
-          {contactData.workPhone && <p><strong>Work:</strong> {contactData.workPhone}</p>}
-          {contactData.email && <p><strong>Email:</strong> {contactData.email}</p>}
-          {(contactData.emergencyFirstName || contactData.emergencyLastName) && (
-            <p>
-              <strong>Emergency Contact:</strong>{' '}
-              {[
-                contactData.emergencyFirstName,
-                contactData.emergencyMiddleName,
-                contactData.emergencyLastName
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            </p>
-          )}
-          {contactData.emergencyRelationship && (
-            <p><strong>Relationship:</strong> {contactData.emergencyRelationship}</p>
-          )}
-          {contactData.emergencyPhone && <p><strong>Phone:</strong> {contactData.emergencyPhone}</p>}
-          {contactData.emergencyEmail && <p><strong>Email:</strong> {contactData.emergencyEmail}</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Contact</h3>
+            <button onClick={handleEditContact} className="edit-button">Edit</button>
+          </div>
+          {(() => {
+            const data = contactDataLoaded || contactData;
+            // Map nested schema data to flat structure
+            const mobilePhone = data.contact_info?.mobile ? `${data.contact_info.mobile.code || ''} ${data.contact_info.mobile.number || ''}`.trim() : data.mobilePhone;
+            const homePhone = data.contact_info?.home_phone ? `${data.contact_info.home_phone.code || ''} ${data.contact_info.home_phone.number || ''}`.trim() : data.homePhone;
+            const workPhone = data.contact_info?.work_phone ? `${data.contact_info.work_phone.code || ''} ${data.contact_info.work_phone.number || ''}`.trim() : data.workPhone;
+            const email = data.contact_info?.email || data.email;
+            
+            // Emergency contact (array in schema)
+            const emergencyContact = data.contact_info?.emergency_contact?.[0] || data.emergencyContact;
+            const emergencyFirstName = emergencyContact?.name?.first || data.emergencyFirstName;
+            const emergencyMiddleName = emergencyContact?.name?.middle || data.emergencyMiddleName;
+            const emergencyLastName = emergencyContact?.name?.last || data.emergencyLastName;
+            const emergencyRelationship = emergencyContact?.relationship || data.emergencyRelationship;
+            const emergencyPhone = emergencyContact?.phone ? `${emergencyContact.phone.code || ''} ${emergencyContact.phone.number || ''}`.trim() : data.emergencyPhone;
+            const emergencyEmail = emergencyContact?.email || data.emergencyEmail;
+
+            return (
+              <>
+                {mobilePhone && <p><strong>Mobile:</strong> {mobilePhone}</p>}
+                {homePhone && <p><strong>Home:</strong> {homePhone}</p>}
+                {workPhone && <p><strong>Work:</strong> {workPhone}</p>}
+                {email && <p><strong>Email:</strong> {email}</p>}
+                {(emergencyFirstName || emergencyLastName) && (
+                  <p>
+                    <strong>Emergency Contact:</strong>{' '}
+                    {[
+                      emergencyFirstName,
+                      emergencyMiddleName,
+                      emergencyLastName
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  </p>
+                )}
+                {emergencyRelationship && (
+                  <p><strong>Relationship:</strong> {emergencyRelationship}</p>
+                )}
+                {emergencyPhone && <p><strong>Phone:</strong> {emergencyPhone}</p>}
+                {emergencyEmail && <p><strong>Email:</strong> {emergencyEmail}</p>}
+              </>
+            );
+          })()}
         </section>
-      )}
+      ) : null}
 
       {/* Insurance Section */}
-      {insuranceData && Object.keys(insuranceData).length > 0 && (
+      {(insuranceDataLoaded && Object.keys(insuranceDataLoaded).length > 0) || (insuranceData && Object.keys(insuranceData).length > 0) ? (
         <section>
-          <h3>Insurance Information</h3>
-
-          <div className="insurance-section">
-            <h4>Primary Insurance</h4>
-            {insuranceData.primaryCompanyName && <p><strong>Insurance Company Name:</strong> {insuranceData.primaryCompanyName}</p>}
-            {insuranceData.primaryPolicyNumber && <p><strong>Policy Number:</strong> {insuranceData.primaryPolicyNumber}</p>}
-            {insuranceData.primaryGroupNumber && <p><strong>Group Number:</strong> {insuranceData.primaryGroupNumber}</p>}
-            {insuranceData.primaryPlanType && <p><strong>Plan Type:</strong> {insuranceData.primaryPlanType}</p>}
-            <p>
-              <strong>Insurance Effective Dates:</strong>{' '}
-              {insuranceData.primaryStartDate && insuranceData.primaryEndDate
-                ? `${formatDate(insuranceData.primaryStartDate)} - ${formatDate(insuranceData.primaryEndDate)}`
-                : 'N/A'}
-            </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Insurance Information</h3>
+            <button onClick={handleEditInsurance} className="edit-button">Edit</button>
           </div>
+          {(() => {
+            const data = insuranceDataLoaded || insuranceData;
+            // Map nested schema data to flat structure
+            const primaryCompanyName = data.insurance?.primary?.company_name || data.primaryCompanyName;
+            const primaryPolicyNumber = data.insurance?.primary?.policy_number || data.primaryPolicyNumber;
+            const primaryGroupNumber = data.insurance?.primary?.group_number || data.primaryGroupNumber;
+            const primaryPlanType = data.insurance?.primary?.plan_type || data.primaryPlanType;
+            const primaryStartDate = data.insurance?.primary?.effective_start || data.primaryStartDate;
+            const primaryEndDate = data.insurance?.primary?.effective_end || data.primaryEndDate;
+            
+            const secondaryCompanyName = data.insurance?.secondary?.company_name || data.secondaryCompanyName;
+            const secondaryPolicyNumber = data.insurance?.secondary?.policy_number || data.secondaryPolicyNumber;
+            const secondaryGroupNumber = data.insurance?.secondary?.group_number || data.secondaryGroupNumber;
+            const secondaryPlanType = data.insurance?.secondary?.plan_type || data.secondaryPlanType;
+            const secondaryStartDate = data.insurance?.secondary?.effective_start || data.secondaryStartDate;
+            const secondaryEndDate = data.insurance?.secondary?.effective_end || data.secondaryEndDate;
+            
+            const contactNumber = data.insurance?.insurance_contact_number || data.contactNumber;
 
-          {insuranceData.secondaryCompanyName && (
-            <div className="insurance-section">
-              <h4>Secondary Insurance</h4>
-              {insuranceData.secondaryCompanyName && <p><strong>Insurance Company Name:</strong> {insuranceData.secondaryCompanyName}</p>}
-              {insuranceData.secondaryPolicyNumber && <p><strong>Policy Number:</strong> {insuranceData.secondaryPolicyNumber}</p>}
-              {insuranceData.secondaryGroupNumber && <p><strong>Group Number:</strong> {insuranceData.secondaryGroupNumber}</p>}
-              {insuranceData.secondaryPlanType && <p><strong>Plan Type:</strong> {insuranceData.secondaryPlanType}</p>}
-              <p>
-                <strong>Insurance Effective Dates:</strong>{' '}
-                {insuranceData.secondaryStartDate && insuranceData.secondaryEndDate
-                  ? `${formatDate(insuranceData.secondaryStartDate)} - ${formatDate(insuranceData.secondaryEndDate)}`
-                  : 'N/A'}
-              </p>
-            </div>
-          )}
+            return (
+              <>
+                <div className="insurance-section">
+                  <h4>Primary Insurance</h4>
+                  {primaryCompanyName && <p><strong>Insurance Company Name:</strong> {primaryCompanyName}</p>}
+                  {primaryPolicyNumber && <p><strong>Policy Number:</strong> {primaryPolicyNumber}</p>}
+                  {primaryGroupNumber && <p><strong>Group Number:</strong> {primaryGroupNumber}</p>}
+                  {primaryPlanType && <p><strong>Plan Type:</strong> {primaryPlanType}</p>}
+                  <p>
+                    <strong>Insurance Effective Dates:</strong>{' '}
+                    {primaryStartDate && primaryEndDate
+                      ? `${primaryStartDate} - ${primaryEndDate}`
+                      : 'N/A'}
+                  </p>
+                </div>
 
-          <div className="insurance-section">
-            <h4>Contact Information</h4>
-            {insuranceData.contactNumber && <p><strong>Contact Number:</strong> {insuranceData.contactNumber}</p>}
-          </div>
+                {(secondaryCompanyName || secondaryPolicyNumber) && (
+                  <div className="insurance-section">
+                    <h4>Secondary Insurance</h4>
+                    {secondaryCompanyName && <p><strong>Insurance Company Name:</strong> {secondaryCompanyName}</p>}
+                    {secondaryPolicyNumber && <p><strong>Policy Number:</strong> {secondaryPolicyNumber}</p>}
+                    {secondaryGroupNumber && <p><strong>Group Number:</strong> {secondaryGroupNumber}</p>}
+                    {secondaryPlanType && <p><strong>Plan Type:</strong> {secondaryPlanType}</p>}
+                    <p>
+                      <strong>Insurance Effective Dates:</strong>{' '}
+                      {secondaryStartDate && secondaryEndDate
+                        ? `${secondaryStartDate} - ${secondaryEndDate}`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="insurance-section">
+                  <h4>Contact Information</h4>
+                  {contactNumber && <p><strong>Contact Number:</strong> {contactNumber}</p>}
+                </div>
+              </>
+            );
+          })()}
         </section>
-      )}
+      ) : null}
 
-      {/* Ailments Section */}
-      {ailmentsData?.length > 0 && (
+      {/* Allergies Section */}
+      {allergiesData?.length > 0 && (
         <section>
-          <h3>Ailments</h3>
-          {ailmentsData.map((ailment, index) => (
-            <div key={index} className="ailment-item">
-              {ailment.problemName && <h4>{ailment.problemName}</h4>}
-              {ailment.description && <p><strong>Description:</strong> {ailment.description}</p>}
-              {ailment.dateOfOnset && <p><strong>Date of Onset:</strong> {formatDate(ailment.dateOfOnset)}</p>}
-              {ailment.status && ailment.status !== 'Select' && <p><strong>Status:</strong> {ailment.status}</p>}
-              {ailment.icdCode && <p><strong>ICD Code:</strong> {ailment.icdCode}</p>}
-              {ailment.severity && ailment.severity !== 'Select' && <p><strong>Severity:</strong> {ailment.severity}</p>}
-              {(ailment.riskFactor || ailment.comorbidities) && (
-                <p>
-                  <strong>Risk Factors/Comorbidities:</strong> {[ailment.riskFactor, ailment.comorbidities].filter(Boolean).join(', ')}
-                </p>
-              )}
-              {ailment.treatmentPlan && <p><strong>Treatment Plan:</strong> {ailment.treatmentPlan}</p>}
-              {ailment.sideEffects && <p><strong>Side Effects:</strong> {ailment.sideEffects}</p>}
-              {index < ailmentsData.length - 1 && <hr />}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Allergies</h3>
+            <button onClick={handleEditAllergies} className="edit-button">Edit</button>
+          </div>
+          {allergiesData.map((allergy, index) => (
+            <div key={index} className="allergy-item">
+              <h4>Allergy {index + 1}</h4>
+              {allergy.allergen && <p><strong>Allergen:</strong> {allergy.allergen}</p>}
+              {allergy.category && <p><strong>Category:</strong> {allergy.category}</p>}
+              {allergy.reaction && <p><strong>Reaction:</strong> {allergy.reaction}</p>}
+              {allergy.severity && <p><strong>Severity:</strong> {allergy.severity}</p>}
+              {allergy.status && <p><strong>Status:</strong> {allergy.status}</p>}
+              {allergy.code && <p><strong>Code:</strong> {allergy.code}</p>}
+              {index < allergiesData.length - 1 && <hr />}
             </div>
           ))}
         </section>
       )}
 
-      {/* Assessment Section */}
-      {assessmentData && Object.keys(assessmentData).length > 0 && (
+      {/* Family History Section */}
+      {(familyHistoryData?.familyMembers?.length > 0 || familyHistoryData?.geneticConditions?.length > 0) && (
         <section>
-          <h3>Assessment</h3>
-          {assessmentData.chiefComplaints && (
-            <p><strong>Chief Complaints:</strong> {assessmentData.chiefComplaints}</p>
-          )}
-          {assessmentData.historyOfPresentIllness && (
-            <p><strong>HPI:</strong> {assessmentData.historyOfPresentIllness}</p>
-          )}
-          {assessmentData.pastMedicalHistory && (
-            <p><strong>PMH:</strong> {assessmentData.pastMedicalHistory}</p>
-          )}
-          {assessmentData.medicationHistory && (
-            <p><strong>Medication History:</strong> {assessmentData.medicationHistory}</p>
-          )}
-          {assessmentData.testResults && (
-            <p><strong>Tests Results:</strong> {assessmentData.testResults}</p>
-          )}
-          {assessmentData.remindersAlerts && (
-            <p><strong>Reminders/Alerts:</strong> {assessmentData.remindersAlerts}</p>
-          )}
-          {assessmentData.planCare && (
-            <p><strong>Plan Care:</strong> {assessmentData.planCare}</p>
-          )}
-        </section>
-      )}
-
-      {/* Medication History Section */}
-      {medicationHistory?.length > 0 && (
-        <section>
-          <h3>Medication History</h3>
-
-          {/* Current Medications */}
-          {medicationHistory?.some((med) => med.status) && (
-            <div className="medication-section">
-              <h4>Current Medications</h4>
-              {medicationHistory?.filter((med) => med.status).map((med, index) => (
-                <div key={`current-${index}`} className="medication-item">
-                  {med.problem && <p><strong>Problem:</strong> {med.problem}</p>}
-                  <p><strong>Medicines:</strong> {med.medicine} {med.mg && `${med.mg}mg`}</p>
-                  {med.doseTime && <p><strong>Frequency:</strong> {med.doseTime}</p>}
-                  {med.timePeriod && <p><strong>Duration:</strong> {med.timePeriod}</p>}
-                  {index < medicationHistory.filter((med) => med.status).length - 1 && <hr />}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Family History</h3>
+            <button onClick={handleEditFamilyHistory} className="edit-button">Edit</button>
+          </div>
+          
+          {/* Family Members */}
+          {familyHistoryData?.familyMembers?.length > 0 && (
+            <div className="family-member-section">
+              <h4>Family Members</h4>
+              {familyHistoryData.familyMembers.map((member, index) => (
+                <div key={index} className="family-member-item">
+                  <h5>{member.firstName} {member.lastName}</h5>
+                  <p><strong>Relationship:</strong> {member.relationship}</p>
+                  {member.dob && <p><strong>Date of Birth:</strong> {member.dob}</p>}
+                  {member.gender && <p><strong>Gender:</strong> {member.gender}</p>}
+                  <p><strong>Deceased:</strong> {member.deceased ? 'Yes' : 'No'}</p>
+                  {member.medicalConditions && member.medicalConditions.length > 0 && (
+                    <p><strong>Medical Conditions:</strong> {member.medicalConditions.join(', ')}</p>
+                  )}
+                  {index < familyHistoryData.familyMembers.length - 1 && <hr />}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Past Medications */}
-          {medicationHistory?.some((med) => !med.status) && (
-            <div className="medication-section">
-              <h4>Past Medications</h4>
-              {medicationHistory?.filter((med) => !med.status).map((med, index) => (
-                <div key={`past-${index}`} className="medication-item">
-                  {med.problem && <p><strong>Problem:</strong> {med.problem}</p>}
-                  <p><strong>Medicines:</strong> {med.medicine} {med.mg && `${med.mg}mg`}</p>
-                  {med.doseTime && <p><strong>Frequency:</strong> {med.doseTime}</p>}
-                  {med.timePeriod && <p><strong>Duration:</strong> {med.timePeriod}</p>}
-                  {index < medicationHistory.filter((med) => !med.status).length - 1 && <hr />}
+          {/* Genetic Conditions */}
+          {familyHistoryData?.geneticConditions?.length > 0 && (
+            <div className="genetic-conditions-section">
+              <h4>Genetic Conditions</h4>
+              {familyHistoryData.geneticConditions.map((condition, index) => (
+                <div key={index} className="genetic-condition-item">
+                  {condition.conditionName && <p><strong>Condition:</strong> {condition.conditionName}</p>}
+                  {condition.affectedMember && <p><strong>Affected Family Member:</strong> {condition.affectedMember}</p>}
+                  {condition.testResults && <p><strong>Test Results:</strong> {condition.testResults}</p>}
+                  {index < familyHistoryData.geneticConditions.length - 1 && <hr />}
                 </div>
               ))}
             </div>
@@ -264,89 +462,152 @@ export default function Preview() {
         </section>
       )}
 
-      {/* Vitals Section */}
-      {vitalsData?.length > 0 && (
+      {/* Social History Section */}
+      {socialHistoryData && (
         <section>
-          <h3>Vital Signs</h3>
-          {vitalsData.map((vitals, index) => (
-            <div key={index} className="vitals-item">
-              <h4>Vitals Record {index + 1} - {formatDate(vitals.date)} {vitals.time || ''}</h4>
-
-              <div className="vitals-grid">
-                {vitals.systolic && vitals.diastolic && (
-                  <div className="vitals-card">
-                    <strong>Blood Pressure:</strong> {vitals.systolic}/{vitals.diastolic} mmHg
-                  </div>
-                )}
-
-                {vitals.pulse && (
-                  <div className="vitals-card">
-                    <strong>Pulse:</strong> {vitals.pulse} BPM
-                  </div>
-                )}
-
-                {vitals.respiratory && (
-                  <div className="vitals-card">
-                    <strong>Respiratory Rate:</strong> {vitals.respiratory} BPM
-                  </div>
-                )}
-
-                {vitals.temperature && (
-                  <div className="vitals-card">
-                    <strong>Temperature:</strong> {vitals.temperature}°{vitals.tempUnit === 'Celsius' ? 'C' : 'F'}
-                  </div>
-                )}
-
-                {vitals.spo2 && (
-                  <div className="vitals-card">
-                    <strong>SpO₂:</strong> {vitals.spo2}%
-                  </div>
-                )}
-
-                {vitals.height && (
-                  <div className="vitals-card">
-                    <strong>Height:</strong> {vitals.height} {vitals.heightUnit === 'feet' ? 'ft' : 'in'}
-                  </div>
-                )}
-
-                {vitals.weight && (
-                  <div className="vitals-card">
-                    <strong>Weight:</strong> {vitals.weight} kg
-                  </div>
-                )}
-
-                {vitals.bmi && (
-                  <div className="vitals-card">
-                    <strong>BMI:</strong> {vitals.bmi} kg/m²
-                  </div>
-                )}
-
-                <div className="vitals-card">
-                  <strong>Pain Level:</strong> {vitals.pain}/10 - {getPainLevelText(vitals.pain)}
-                </div>
-              </div>
-
-              {vitals.comments && (
-                <div className="vitals-comments">
-                  <strong>Notes:</strong> {vitals.comments}
-                </div>
-              )}
-
-              {index < vitalsData.length - 1 && <hr />}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Social History</h3>
+            <button onClick={handleEditSocialHistory} className="edit-button">Edit</button>
+          </div>
+          
+          {/* Tobacco Smoking */}
+          {socialHistoryData.tobaccoSmoking && (
+            <div className="social-subsection">
+              <h4>Tobacco Smoking</h4>
+              {socialHistoryData.tobaccoSmoking.current_status && <p><strong>Status:</strong> {socialHistoryData.tobaccoSmoking.current_status}</p>}
+              {socialHistoryData.tobaccoSmoking.average_daily_consumption && <p><strong>Daily Consumption:</strong> {socialHistoryData.tobaccoSmoking.average_daily_consumption} cigarettes/day</p>}
+              {socialHistoryData.tobaccoSmoking.duration_of_use && <p><strong>Duration:</strong> {socialHistoryData.tobaccoSmoking.duration_of_use} {socialHistoryData.tobaccoSmoking.duration_unit}</p>}
+              {socialHistoryData.tobaccoSmoking.quit_date && <p><strong>Quit Date:</strong> {socialHistoryData.tobaccoSmoking.quit_date}</p>}
+              {socialHistoryData.tobaccoSmoking.notes && <p><strong>Notes:</strong> {socialHistoryData.tobaccoSmoking.notes}</p>}
             </div>
-          ))}
+          )}
+
+          {/* Alcohol Use */}
+          {socialHistoryData.alcohol && (
+            <div className="social-subsection">
+              <h4>Alcohol Use</h4>
+              {socialHistoryData.alcohol.current_status && <p><strong>Status:</strong> {socialHistoryData.alcohol.current_status}</p>}
+              {socialHistoryData.alcohol.average_weekly_consumption && <p><strong>Weekly Consumption:</strong> {socialHistoryData.alcohol.average_weekly_consumption} drinks/week</p>}
+              {socialHistoryData.alcohol.type_of_alcohol && <p><strong>Type:</strong> {socialHistoryData.alcohol.type_of_alcohol}</p>}
+              {socialHistoryData.alcohol.period_of_use && <p><strong>Period of Use:</strong> {socialHistoryData.alcohol.period_of_use}</p>}
+              {socialHistoryData.alcohol.notes && <p><strong>Notes:</strong> {socialHistoryData.alcohol.notes}</p>}
+            </div>
+          )}
+
+          {/* Social Text */}
+          {socialHistoryData.socialText?.notes && (
+            <div className="social-subsection">
+              <h4>Additional Notes</h4>
+              <p>{socialHistoryData.socialText.notes}</p>
+            </div>
+          )}
+
+          {/* Financial Resources */}
+          {socialHistoryData.financial && (
+            <div className="social-subsection">
+              <h4>Financial Resources</h4>
+              {socialHistoryData.financial.income_level && <p><strong>Income Level:</strong> {socialHistoryData.financial.income_level}</p>}
+              {socialHistoryData.financial.employment_status && <p><strong>Employment Status:</strong> {socialHistoryData.financial.employment_status}</p>}
+              {socialHistoryData.financial.financial_support && <p><strong>Financial Support:</strong> {socialHistoryData.financial.financial_support}</p>}
+              {socialHistoryData.financial.notes && <p><strong>Notes:</strong> {socialHistoryData.financial.notes}</p>}
+            </div>
+          )}
+
+          {/* Education */}
+          {socialHistoryData.education?.highest_level_of_education && (
+            <div className="social-subsection">
+              <h4>Education</h4>
+              <p><strong>Highest Level:</strong> {socialHistoryData.education.highest_level_of_education}</p>
+              {socialHistoryData.education.notes && <p><strong>Notes:</strong> {socialHistoryData.education.notes}</p>}
+            </div>
+          )}
+
+          {/* Physical Activity */}
+          {socialHistoryData.physicalActivity && (
+            <div className="social-subsection">
+              <h4>Physical Activity</h4>
+              {socialHistoryData.physicalActivity.frequency && <p><strong>Frequency:</strong> {socialHistoryData.physicalActivity.frequency}</p>}
+              {socialHistoryData.physicalActivity.type_of_exercise && <p><strong>Type:</strong> {socialHistoryData.physicalActivity.type_of_exercise}</p>}
+              {socialHistoryData.physicalActivity.duration && <p><strong>Duration:</strong> {socialHistoryData.physicalActivity.duration} {socialHistoryData.physicalActivity.duration_unit}</p>}
+              {socialHistoryData.physicalActivity.consistency && <p><strong>Consistency:</strong> {socialHistoryData.physicalActivity.consistency}</p>}
+              {socialHistoryData.physicalActivity.notes && <p><strong>Notes:</strong> {socialHistoryData.physicalActivity.notes}</p>}
+            </div>
+          )}
+
+          {/* Stress */}
+          {socialHistoryData.stress && (
+            <div className="social-subsection">
+              <h4>Stress</h4>
+              {socialHistoryData.stress.perceived_stress_level && <p><strong>Stress Level:</strong> {socialHistoryData.stress.perceived_stress_level}</p>}
+              {socialHistoryData.stress.major_stressors && <p><strong>Major Stressors:</strong> {socialHistoryData.stress.major_stressors}</p>}
+              {socialHistoryData.stress.coping_mechanisms && <p><strong>Coping Mechanisms:</strong> {socialHistoryData.stress.coping_mechanisms}</p>}
+              {socialHistoryData.stress.notes && <p><strong>Notes:</strong> {socialHistoryData.stress.notes}</p>}
+            </div>
+          )}
+
+          {/* Social Isolation */}
+          {socialHistoryData.socialIsolation && (
+            <div className="social-subsection">
+              <h4>Social Isolation & Connection</h4>
+              {socialHistoryData.socialIsolation.isolation_status && <p><strong>Isolation Status:</strong> {socialHistoryData.socialIsolation.isolation_status}</p>}
+              {socialHistoryData.socialIsolation.social_support && <p><strong>Social Support:</strong> {socialHistoryData.socialIsolation.social_support}</p>}
+              {socialHistoryData.socialIsolation.frequency_of_social_interactions && <p><strong>Frequency of Interactions:</strong> {socialHistoryData.socialIsolation.frequency_of_social_interactions}</p>}
+              {socialHistoryData.socialIsolation.notes && <p><strong>Notes:</strong> {socialHistoryData.socialIsolation.notes}</p>}
+            </div>
+          )}
+
+          {/* Exposure to Violence */}
+          {socialHistoryData.exposureToViolence && (
+            <div className="social-subsection">
+              <h4>Exposure to Violence</h4>
+              {socialHistoryData.exposureToViolence.type_of_violence && <p><strong>Type of Violence:</strong> {socialHistoryData.exposureToViolence.type_of_violence}</p>}
+              {socialHistoryData.exposureToViolence.date_of_last_exposure && <p><strong>Last Exposure:</strong> {socialHistoryData.exposureToViolence.date_of_last_exposure}</p>}
+              {socialHistoryData.exposureToViolence.support_or_intervention_received && <p><strong>Support Received:</strong> {socialHistoryData.exposureToViolence.support_or_intervention_received}</p>}
+              {socialHistoryData.exposureToViolence.notes && <p><strong>Notes:</strong> {socialHistoryData.exposureToViolence.notes}</p>}
+            </div>
+          )}
+
+          {/* Gender Identity */}
+          {socialHistoryData.genderIdentity?.gender_identity && (
+            <div className="social-subsection">
+              <h4>Gender Identity</h4>
+              <p><strong>Identity:</strong> {socialHistoryData.genderIdentity.gender_identity}</p>
+              {socialHistoryData.genderIdentity.notes && <p><strong>Notes:</strong> {socialHistoryData.genderIdentity.notes}</p>}
+            </div>
+          )}
+
+          {/* Sexual Orientation */}
+          {socialHistoryData.sexualOrientation?.sexual_orientation && (
+            <div className="social-subsection">
+              <h4>Sexual Orientation</h4>
+              <p><strong>Orientation:</strong> {socialHistoryData.sexualOrientation.sexual_orientation}</p>
+              {socialHistoryData.sexualOrientation.notes && <p><strong>Notes:</strong> {socialHistoryData.sexualOrientation.notes}</p>}
+            </div>
+          )}
+
+          {/* Nutrients History */}
+          {socialHistoryData.nutrients && (
+            <div className="social-subsection">
+              <h4>Nutrients History</h4>
+              {socialHistoryData.nutrients.dietary_preferences && <p><strong>Dietary Preferences:</strong> {socialHistoryData.nutrients.dietary_preferences}</p>}
+              {socialHistoryData.nutrients.supplement_usage && <p><strong>Supplement Usage:</strong> {socialHistoryData.nutrients.supplement_usage}</p>}
+              {socialHistoryData.nutrients.notes && <p><strong>Notes:</strong> {socialHistoryData.nutrients.notes}</p>}
+            </div>
+          )}
         </section>
       )}
 
       {/* No Data Message */}
       {!(
+        (patientDataLoaded && Object.keys(patientDataLoaded).length > 0) ||
         (patientData && Object.keys(patientData).length > 0) ||
+        (contactDataLoaded && Object.keys(contactDataLoaded).length > 0) ||
         (contactData && Object.keys(contactData).length > 0) ||
+        (insuranceDataLoaded && Object.keys(insuranceDataLoaded).length > 0) ||
         (insuranceData && Object.keys(insuranceData).length > 0) ||
-        (ailmentsData?.length > 0) ||
-        (assessmentData && Object.keys(assessmentData).length > 0) ||
-        (medicationHistory?.length > 0) ||
-        (vitalsData?.length > 0)
+        (allergiesData?.length > 0) ||
+        (familyHistoryData?.familyMembers?.length > 0 || familyHistoryData?.geneticConditions?.length > 0) ||
+        (socialHistoryData && Object.keys(socialHistoryData).some(key => socialHistoryData[key]))
       ) && (
         <p>No data yet. Fill in the forms to preview.</p>
       )}

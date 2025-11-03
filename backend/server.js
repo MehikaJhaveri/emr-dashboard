@@ -11,6 +11,7 @@ import familyhistoryRoutes from "./routes/familyHistory.js"
 import socialHistoryRoutes from "./routes/socialHistory.js";
 import visitRoutes from './routes/visitRoutes.js';
 import appointmentRoutes from './routes/appointments.js';
+import dashboardRoutes from './routes/DashboardRoutes.js';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use('/api/family-history', familyhistoryRoutes);
 app.use('/api/social-history', socialHistoryRoutes);
 app.use('/api', visitRoutes);
 app.use('/api', appointmentRoutes);
+app.use('/api', dashboardRoutes);
 
 // Root route
 app.get('/', (req, res) => {

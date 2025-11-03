@@ -671,3 +671,246 @@ textarea:disabled {
   color: #6c757d;
   cursor: not-allowed;
 }
+
+/* Medication History Table Styles */
+.medication-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  background-color: #F5F9FF;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin-top: 15px;
+}
+
+.medication-table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.medication-table-wrapper thead th {
+  background-color: #236D8B;
+  color: white;
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.medication-table-wrapper tbody td {
+  padding: 10px;
+  border-bottom: 1px solid #BBDEFB;
+  vertical-align: middle;
+}
+
+.medication-table-wrapper tbody tr {
+  transition: background-color 0.3s ease;
+}
+
+.medication-table-wrapper tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.medication-table-wrapper tbody tr.active-med-row {
+  background-color: rgba(46, 204, 113, 0.1);
+}
+
+.medication-table-wrapper input[type="text"],
+.medication-table-wrapper select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #BBDEFB;
+  border-radius: 6px;
+  font-size: 13px;
+  background-color: white;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.medication-table-wrapper input[type="text"]:focus,
+.medication-table-wrapper select:focus {
+  outline: none;
+  border-color: #236D8B;
+  box-shadow: 0 0 0 2px rgba(35, 109, 139, 0.2);
+}
+
+.medication-table-wrapper select {
+  min-width: 140px;
+  height: 36px;
+  line-height: 1.4;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='16' viewBox='0 0 24 24' width='16' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 30px;
+}
+
+.dosage-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.dosage-input-wrapper input {
+  flex: 1;
+  padding-right: 35px !important;
+}
+
+.dosage-input-wrapper span {
+  position: absolute;
+  right: 12px;
+  color: #666;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.med-status-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.med-status-btn.active {
+  background-color: #2ecc71;
+  color: white;
+  box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);
+}
+
+.med-status-btn.active:hover {
+  background-color: #27ae60;
+  transform: translateY(-1px);
+}
+
+.med-status-btn.inactive {
+  background-color: #e74c3c;
+  color: white;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.med-status-btn.inactive:hover {
+  background-color: #c0392b;
+  transform: translateY(-1px);
+}
+
+.med-action-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.med-add-btn,
+.med-remove-btn {
+  padding: 6px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.med-add-btn {
+  background-color: #236D8B;
+  color: white;
+  box-shadow: 0 2px 8px rgba(35, 109, 139, 0.3);
+}
+
+.med-add-btn:hover {
+  background-color: #1e5a73;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(35, 109, 139, 0.4);
+}
+
+.med-remove-btn {
+  background-color: #e74c3c;
+  color: white;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.med-remove-btn:hover {
+  background-color: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .visit-layout {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .nv-sidebar {
+    width: 100%;
+    height: 320px;
+    padding: 20px;
+  }
+  
+  .main-content {
+    padding: 20px;
+  }
+  
+  .form-card {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .vitals-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
+  }
+  
+  .form-actions-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .form-nav {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .medication-table-wrapper {
+    overflow-x: scroll;
+  }
+
+  .medication-table-wrapper table {
+    min-width: 800px;
+  }
+
+  .medication-table-wrapper thead th,
+  .medication-table-wrapper tbody td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .med-action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* Loading state for inputs */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}

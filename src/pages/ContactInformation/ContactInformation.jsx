@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useNavigate } from 'react-router-dom';
 import "./ContactInformation.css";
@@ -25,6 +25,56 @@ const ContactInformation = () => {
       }
     ]
   });
+
+  // Load existing contact data from database
+  useEffect(() => {
+    const loadExistingData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      if (!patientId) return;
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/contact-information/${patientId}`);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.success && json.data?.contact_info) {
+            const data = json.data.contact_info;
+            
+            // Format phone numbers from nested structure
+            const mobilePhone = data.mobile ? `${data.mobile.code || ''} ${data.mobile.number || ''}`.trim() : '';
+            const homePhone = data.home_phone ? `${data.home_phone.code || ''} ${data.home_phone.number || ''}`.trim() : '';
+            const workPhone = data.work_phone ? `${data.work_phone.code || ''} ${data.work_phone.number || ''}`.trim() : '';
+            
+            setFormData({
+              mobilePhone,
+              homePhone,
+              workPhone,
+              email: data.email || '',
+              preferredContactMethod: data.preferred_contact_methods || [],
+              emergencyContacts: (data.emergency_contact && data.emergency_contact.length > 0) ? data.emergency_contact.map(contact => ({
+                firstName: contact.name?.first || '',
+                middleName: contact.name?.middle || '',
+                lastName: contact.name?.last || '',
+                relationship: contact.relationship || '',
+                phone: contact.phone ? `${contact.phone.code || ''} ${contact.phone.number || ''}`.trim() : '',
+                email: contact.email || ''
+              })) : [{
+                firstName: '',
+                middleName: '',
+                lastName: '',
+                relationship: '',
+                phone: '',
+                email: ''
+              }]
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading contact data:", error);
+      }
+    };
+
+    loadExistingData();
+  }, []);
 
   const handleChange = (e, index = null) => {
     const { name, value } = e.target;
@@ -106,20 +156,20 @@ const ContactInformation = () => {
       navigate('/dashboard/patient-demographics');
       return;
     }
-      const response = await fetch('http://localhost:5000/api/contact-information', {
-        method: 'POST',
+
+      // Use PUT for updates (contact info is required at patient creation)
+      const response = await fetch(`http://localhost:5000/api/contact-information/${patientId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patient_id: patientId, // replace with logged-in user's ID
-          ...formData
-        })
+        body: JSON.stringify(formData)
       });
 
       if (response.ok) {
-        alert("Contact Information saved successfully!");
+        alert("Contact Information updated successfully!");
         setShowPreview(false);
       } else {
-        alert("Failed to save Contact Information.");
+        const errorData = await response.json();
+        alert(errorData.message || "Failed to save Contact Information.");
       }
     } catch (error) {
       console.error("Error saving contact information:", error);

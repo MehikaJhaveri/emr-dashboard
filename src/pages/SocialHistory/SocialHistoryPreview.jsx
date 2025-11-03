@@ -80,10 +80,10 @@ const SocialHistoryPreview = () => {
       })).then(v => ({ key: 'tobaccoConsumption', value: v })),
 
       fetchSection('alcohol', (d) => ({
-        status: d.status ?? null,
-        weeklyConsumption: d.weeklyConsumption ?? d.average_weekly_consumption ?? null,
-        alcoholType: d.alcoholType ?? d.type ?? null,
-        period: d.period ?? null,
+        status: d.current_status ?? null,
+        weeklyConsumption: d.average_weekly_consumption ?? null,
+        alcoholType: d.type_of_alcohol ?? null,
+        period: d.period_of_use ?? null,
         notes: d.notes ?? null,
       })).then(v => ({ key: 'alcoholUse', value: v })),
 

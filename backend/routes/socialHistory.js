@@ -720,25 +720,51 @@ router.delete('/:patientId/physical-activity', async (req, res) => {
 router.post('/:patientId/tobacco-smoking', async (req, res) => {
   try {
     const { patientId } = req.params;
-    const { status, dailyConsumption, duration, durationUnit, quitDate, notes } = req.body;
+    const { current_status, average_daily_consumption, duration_of_use, duration_unit, quit_date, notes, status, dailyConsumption, duration, durationUnit, quitDate } = req.body;
+
+    // Support both frontend formats - map old format to new format for backward compatibility
+    const statusValue = current_status || status;
+    const dailyConsumptionValue = average_daily_consumption !== undefined ? average_daily_consumption : dailyConsumption;
+    const durationValue = duration_of_use || duration;
+    const durationUnitValue = duration_unit || durationUnit;
+    const quitDateValue = quit_date || quitDate;
 
     // Validate required fields
-    if (!status) {
+    if (!statusValue) {
       return res.status(400).json({
         success: false,
         message: 'Current status is required'
       });
     }
 
-    // Prepare update data
+    // Prepare update data - only include fields with valid values
     const tobaccoSmokingData = {
-      current_status: status,
-      average_daily_consumption: dailyConsumption ? parseInt(dailyConsumption) : undefined,
-      duration_of_use: duration || '',
-      duration_unit: durationUnit || 'years',
-      quit_date: quitDate || '',
-      notes: notes || ''
+      current_status: statusValue
     };
+
+    // Only add fields if they have valid values
+    if (dailyConsumptionValue !== undefined && dailyConsumptionValue !== null && dailyConsumptionValue !== '') {
+      tobaccoSmokingData.average_daily_consumption = parseInt(dailyConsumptionValue);
+    }
+
+    if (durationValue && durationValue !== '') {
+      tobaccoSmokingData.duration_of_use = durationValue;
+    }
+
+    if (durationUnitValue && durationUnitValue !== '') {
+      tobaccoSmokingData.duration_unit = durationUnitValue;
+    }
+
+    // Only add quit_date if it's not empty (empty string fails regex validation)
+    if (quitDateValue && quitDateValue.trim() !== '') {
+      tobaccoSmokingData.quit_date = quitDateValue;
+    }
+
+    if (notes !== undefined && notes !== '') {
+      tobaccoSmokingData.notes = notes;
+    }
+
+    console.log('Processed tobacco smoking data:', tobaccoSmokingData);
 
     // Update patient's tobacco smoking information under social_history
     const updatedPatient = await Patient.findByIdAndUpdate(
@@ -811,25 +837,51 @@ router.get('/:patientId/tobacco-smoking', async (req, res) => {
 router.put('/:patientId/tobacco-smoking', async (req, res) => {
   try {
     const { patientId } = req.params;
-    const { status, dailyConsumption, duration, durationUnit, quitDate, notes } = req.body;
+    const { current_status, average_daily_consumption, duration_of_use, duration_unit, quit_date, notes, status, dailyConsumption, duration, durationUnit, quitDate } = req.body;
+
+    // Support both frontend formats - map old format to new format for backward compatibility
+    const statusValue = current_status || status;
+    const dailyConsumptionValue = average_daily_consumption !== undefined ? average_daily_consumption : dailyConsumption;
+    const durationValue = duration_of_use || duration;
+    const durationUnitValue = duration_unit || durationUnit;
+    const quitDateValue = quit_date || quitDate;
 
     // Validate required fields
-    if (!status) {
+    if (!statusValue) {
       return res.status(400).json({
         success: false,
         message: 'Current status is required'
       });
     }
 
-    // Prepare update data
+    // Prepare update data - only include fields with valid values
     const tobaccoSmokingData = {
-      current_status: status,
-      average_daily_consumption: dailyConsumption ? parseInt(dailyConsumption) : undefined,
-      duration_of_use: duration || '',
-      duration_unit: durationUnit || 'years',
-      quit_date: quitDate || '',
-      notes: notes || ''
+      current_status: statusValue
     };
+
+    // Only add fields if they have valid values
+    if (dailyConsumptionValue !== undefined && dailyConsumptionValue !== null && dailyConsumptionValue !== '') {
+      tobaccoSmokingData.average_daily_consumption = parseInt(dailyConsumptionValue);
+    }
+
+    if (durationValue && durationValue !== '') {
+      tobaccoSmokingData.duration_of_use = durationValue;
+    }
+
+    if (durationUnitValue && durationUnitValue !== '') {
+      tobaccoSmokingData.duration_unit = durationUnitValue;
+    }
+
+    // Only add quit_date if it's not empty (empty string fails regex validation)
+    if (quitDateValue && quitDateValue.trim() !== '') {
+      tobaccoSmokingData.quit_date = quitDateValue;
+    }
+
+    if (notes !== undefined && notes !== '') {
+      tobaccoSmokingData.notes = notes;
+    }
+
+    console.log('Processed tobacco smoking data (PUT):', tobaccoSmokingData);
 
     // Update patient's tobacco smoking information under social_history
     const updatedPatient = await Patient.findByIdAndUpdate(

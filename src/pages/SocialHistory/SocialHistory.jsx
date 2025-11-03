@@ -134,13 +134,6 @@ const SocialHistory = () => {
 
       <div className="social-history-buttons">
         <button 
-          className="preview-btn" 
-          onClick={handleNext}
-          disabled={!Object.values(toggles).some(Boolean)}
-        >
-          Preview
-        </button>
-        <button 
           className="next-btn" 
           onClick={handleNext}
         >

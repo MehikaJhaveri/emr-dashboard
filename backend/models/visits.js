@@ -167,6 +167,5 @@ const visitSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Visit = mongoose.model('Visit', visitSchema);
-
-export default Visit;
+// At the end of models/visits.js
+export default mongoose.models.Visit || mongoose.model('Visit', visitSchema);

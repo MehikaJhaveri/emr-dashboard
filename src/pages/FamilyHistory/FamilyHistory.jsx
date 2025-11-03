@@ -26,6 +26,44 @@ const FamilyHistory = () => {
     testResults: ""
   });
 
+  // Fetch Family History from backend when component loads
+React.useEffect(() => {
+  const fetchFamilyHistory = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
+    if (!patientId) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/family-history/${patientId}`);
+      if (!response.ok) return;
+
+      const json = await response.json();
+      console.log("Backend family history:", json);
+
+      // ✅ Support both response shapes
+      const data = json.data || {};
+      const loadedMembers = data.familyMembers || json.familyMembers || [];
+      const loadedGenetics = data.geneticConditions || json.geneticConditions || [];
+
+      // ✅ Load saved family members
+      if (Array.isArray(loadedMembers) && loadedMembers.length > 0) {
+        setFamilyMembers(loadedMembers);
+        setHasAddedMembers(true);
+      }
+
+      // ✅ Load saved genetic conditions
+      if (Array.isArray(loadedGenetics) && loadedGenetics.length > 0) {
+        setGeneticConditions(loadedGenetics);
+      }
+
+    } catch (error) {
+      console.error("Error loading family history:", error);
+    }
+  };
+
+  fetchFamilyHistory();
+}, []);
+
+
   const handleMemberChange = (e) => {
     const { name, value, type, checked } = e.target;
     setCurrentMember(prev => ({

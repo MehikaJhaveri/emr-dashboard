@@ -1,70 +1,126 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSocialHistory } from "./SocialHistoryContext";
 import "./AlcoholUse.css";
 
 const AlcoholUse = ({ onClose }) => {
   const { updateAlcoholUse } = useSocialHistory();
   const [isSaving, setIsSaving] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
+  const [existingData, setExistingData] = useState(false);
+
   const [formData, setFormData] = useState({
-    status: "Moderate Drinker",
+    status: "",
     weeklyConsumption: "",
-    alcoholType: "Red wine",
+    alcoholType: "",
     period: "",
     notes: "",
   });
 
+  // ✅ Fetch Alcohol Data from Backend
+  useEffect(() => {
+    const fetchAlcoholData = async () => {
+      const patientId = localStorage.getItem("currentPatientId");
+      if (!patientId) {
+        console.error("No patient ID found in localStorage");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/social-history/${patientId}/alcohol`
+        );
+
+        if (!res.ok) {
+          console.warn("No existing alcohol data found for patient.");
+          setLoading(false);
+          return;
+        }
+
+        const body = await res.json();
+        console.log("Raw response:", body);
+        
+        // Handle different response structures
+        const data = body?.data || body?.alcohol_use || null;
+
+        if (data) {
+          console.log("Loaded alcohol data:", data);
+          setFormData({
+            status: data.current_status || "",
+            weeklyConsumption: data.average_weekly_consumption || "",
+            alcoholType: data.type_of_alcohol || "",
+            period: data.period_of_use || "",
+            notes: data.notes || "",
+          });
+          setExistingData(true);
+        } else {
+          console.warn("No existing alcohol data found for patient.");
+        }
+      } catch (error) {
+        console.error("Error loading alcohol data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlcoholData();
+  }, []);
+
+  // ✅ Handle Input Change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ✅ Handle Save (POST for create, PUT for update)
   const handleSave = async () => {
-    // Get patientId from localStorage
     const patientId = localStorage.getItem("currentPatientId");
-
     if (!patientId) {
       alert("No patient selected. Please complete Patient Demographics first.");
       return;
     }
 
+    // Validate required fields
+    if (!formData.status) {
+      alert("Please select a current status");
+      return;
+    }
+
     setIsSaving(true);
 
+    const alcoholData = {
+      status: formData.status,
+      weeklyConsumption: formData.weeklyConsumption,
+      alcoholType: formData.alcoholType,
+      period: formData.period,
+      notes: formData.notes,
+    };
+
     try {
-      const alcoholData = {
-        status: formData.status,
-        weeklyConsumption: formData.weeklyConsumption,
-        alcoholType: formData.alcoholType,
-        period: formData.period,
-        notes: formData.notes
-      };
+      // Use PUT if data exists, POST if creating new
+      const method = existingData ? "PUT" : "POST";
+      
+      const res = await fetch(
+        `http://localhost:5000/api/social-history/${patientId}/alcohol`,
+        {
+          method: method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(alcoholData),
+        }
+      );
 
-      console.log('Sending alcohol data:', alcoholData);
+      const result = await res.json();
 
-      // Save to backend using patientId
-      const response = await fetch(`http://localhost:5000/api/social-history/${patientId}/alcohol`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(alcoholData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to save alcohol data");
+      if (!res.ok) {
+        console.error("Server error:", result);
+        throw new Error(result.message || result.error || "Failed to save alcohol data");
       }
 
-      // Update context
       updateAlcoholUse(alcoholData);
-      
-      console.log("Alcohol data saved:", alcoholData);
-      alert('Alcohol information saved successfully!');
-      
-      // Close the panel after successful save
-      if (onClose) {
-        onClose();
-      }
+      alert("Alcohol information saved successfully!");
+      setExistingData(true);
 
+      if (onClose) onClose();
     } catch (error) {
       console.error("Error saving alcohol data:", error);
       alert(`Error: ${error.message}`);
@@ -73,18 +129,10 @@ const AlcoholUse = ({ onClose }) => {
     }
   };
 
-  const handleClose = () => {
-    console.log("Close button clicked!");
-    console.log("onClose prop:", onClose);
-    
-    if (onClose) {
-      console.log("Calling onClose function");
-      onClose();
-    } else {
-      console.log("No onClose function provided!");
-      alert("Close function not provided by parent component");
-    }
-  };
+  // ✅ Loading state
+  if (loading) {
+    return <p>Loading alcohol data...</p>;
+  }
 
   return (
     <div className="alcohol-use-panel">
@@ -93,15 +141,17 @@ const AlcoholUse = ({ onClose }) => {
       </div>
 
       <div className="form-group">
-        <label>Current Status</label>
-        <select 
-          name="status" 
-          value={formData.status} 
+        <label>Current Status *</label>
+        <select
+          name="status"
+          value={formData.status}
           onChange={handleChange}
+          required
         >
-          <option>Non-Drinker</option>
-          <option>Moderate Drinker</option>
-          <option>Heavy Drinker</option>
+          <option value="">Select...</option>
+          <option value="Non-Drinker">Non-Drinker</option>
+          <option value="Moderate Drinker">Moderate Drinker</option>
+          <option value="Heavy Drinker">Heavy Drinker</option>
         </select>
       </div>
 
@@ -118,16 +168,23 @@ const AlcoholUse = ({ onClose }) => {
 
       <div className="form-group">
         <label>Type of Alcohol</label>
-        <select 
-          name="alcoholType" 
-          value={formData.alcoholType} 
+        <select
+          name="alcoholType"
+          value={formData.alcoholType}
           onChange={handleChange}
         >
-          <option>Beer</option>
-          <option>Wine</option>
-          <option>Liquor/Spirits</option>
-          <option>Mixed Drinks</option>
-          <option>Other</option>
+          <option value="">Select...</option>
+          <option value="Beer">Beer</option>
+          <option value="Wine">Wine</option>
+          <option value="Red wine">Red Wine</option>
+          <option value="Wiskey">Whiskey</option>
+          <option value="Vodka">Vodka</option>
+          <option value="Rum">Rum</option>
+          <option value="Gin">Gin</option>
+          <option value="Tequila">Tequila</option>
+          <option value="Brandy">Brandy</option>
+          <option value="Mixed Drinks">Mixed Drinks</option>
+          <option value="Other">Other</option>
         </select>
       </div>
 
@@ -144,21 +201,21 @@ const AlcoholUse = ({ onClose }) => {
 
       <div className="form-group">
         <label>Notes</label>
-        <textarea 
-          name="notes" 
-          value={formData.notes} 
+        <textarea
+          name="notes"
+          value={formData.notes}
           onChange={handleChange}
           placeholder="Additional notes..."
         />
       </div>
 
       <div className="alcohol-buttons">
-        <button 
-          className="save-btn" 
+        <button
+          className="save-btn"
           onClick={handleSave}
           disabled={isSaving}
         >
-          {isSaving ? "Saving..." : "Save Alcohol Data"}
+          {isSaving ? "Saving..." : existingData ? "Save Alcohol Data" : "Save Alcohol Data"}
         </button>
       </div>
     </div>

@@ -5,49 +5,134 @@ import './NurseDashboard.css';
 const NurseDashboard = () => {
   const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
-  const [recentPatients, setRecentPatients] = useState([]);
+  const [recentVisits, setRecentVisits] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [visitsSearchTerm, setVisitsSearchTerm] = useState('');
   const [appointmentsSearchTerm, setAppointmentsSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Hardcoded all patients
-    const allPatients = [
-      { id: 1, first_name: 'Sarah', last_name: 'Johnson' },
-      { id: 2, first_name: 'Michael', last_name: 'Chen' },
-      { id: 3, first_name: 'Emma', last_name: 'Rodriguez' },
-      { id: 4, first_name: 'David', last_name: 'Williams' },
-      { id: 5, first_name: 'Sophia', last_name: 'Brown' },
-      { id: 6, first_name: 'James', last_name: 'Smith' },
-    ];
-    setPatients(allPatients);
-
-    // Hardcoded recent patients with "visitTime"
-    const visits = [
-      { id: 7, first_name: 'Ava', last_name: 'Taylor', visitTime: '2025-08-30T15:30:00' },
-      { id: 8, first_name: 'Liam', last_name: 'Davis', visitTime: '2025-08-30T14:45:00' },
-      { id: 9, first_name: 'Olivia', last_name: 'Martinez', visitTime: '2025-08-30T13:00:00' },
-      { id: 10, first_name: 'Noah', last_name: 'Wilson', visitTime: '2025-08-30T12:15:00' },
-    ];
-
-    const sortedVisits = visits.sort(
-      (a, b) => new Date(b.visitTime) - new Date(a.visitTime)
-    );
-
-    setRecentPatients(sortedVisits);
-
-    // Hardcoded appointments
-    const upcomingAppointments = [
-      { id: 1, first_name: 'Sarah', last_name: 'Johnson', time: '9:00 AM', type: 'Follow-up' },
-      { id: 2, first_name: 'Michael', last_name: 'Chen', time: '11:30 AM', type: 'Consultation' },
-      { id: 3, first_name: 'Emma', last_name: 'Rodriguez', time: '2:15 PM', type: 'Physical Exam' },
-    ];
-    setAppointments(upcomingAppointments);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch all patients
+      const patientsResponse = await fetch('http://localhost:5000/api/patients', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!patientsResponse.ok) {
+        const errorText = await patientsResponse.text();
+        throw new Error(`Failed to fetch patients: ${errorText}`);
+      }
+      const patientsData = await patientsResponse.json();
+      
+      // Handle both array and object responses
+      const patientsArray = Array.isArray(patientsData) ? patientsData : (patientsData.data || []);
+      
+      // Map patients data to match the component structure
+      const mappedPatients = patientsArray.map(patient => ({
+        id: patient._id,
+        first_name: patient.name?.first || '',
+        last_name: patient.name?.last || '',
+        middle_name: patient.name?.middle || ''
+      }));
+      setPatients(mappedPatients);
+
+      // Fetch recent visits
+      const visitsResponse = await fetch('http://localhost:5000/api/visits');
+      if (!visitsResponse.ok) {
+        throw new Error('Failed to fetch visits');
+      }
+      const visitsResult = await visitsResponse.json();
+      
+      // Handle both array and object responses
+      const visitsData = Array.isArray(visitsResult) ? visitsResult : (visitsResult.data || []);
+      
+      // Sort visits by creation time (most recent first) and map data
+      const sortedVisits = visitsData
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10) // Get last 10 visits
+        .map(visit => ({
+          id: visit._id,
+          patient_name: visit.patient_name || 'Unknown',
+          patient_id: visit.patient_id,
+          visit_type: visit.visit_type,
+          visitTime: visit.createdAt,
+          chief_complaints: visit.chief_complaints
+        }));
+      setRecentVisits(sortedVisits);
+
+      // Fetch upcoming appointments
+      const appointmentsResponse = await fetch('http://localhost:5000/api/appointments');
+      if (!appointmentsResponse.ok) {
+        throw new Error('Failed to fetch appointments');
+      }
+      const appointmentsResult = await appointmentsResponse.json();
+      
+      // Handle both array and object responses
+      const appointmentsData = Array.isArray(appointmentsResult) ? appointmentsResult : (appointmentsResult.data || []);
+      
+      // Filter and sort appointments for today and future dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const upcomingAppointments = appointmentsData
+        .map(appointment => {
+          // Parse the date (MM-DD-YYYY format)
+          const dateParts = appointment.appointment_date.split('-');
+          const appointmentDate = new Date(
+            parseInt(dateParts[2]), // year
+            parseInt(dateParts[0]) - 1, // month (0-indexed)
+            parseInt(dateParts[1]) // day
+          );
+          
+          return {
+            id: appointment._id,
+            first_name: appointment.patient_name?.first || '',
+            last_name: appointment.patient_name?.last || '',
+            patient_id: appointment.patient_id,
+            time: appointment.appointment_time,
+            type: appointment.appointment_type,
+            date: appointmentDate,
+            dateString: appointment.appointment_date,
+            reason: appointment.reason_for_appointment
+          };
+        })
+        .filter(appointment => appointment.date >= today)
+        .sort((a, b) => {
+          // Sort by date first, then by time
+          if (a.date.getTime() !== b.date.getTime()) {
+            return a.date - b.date;
+          }
+          // If same date, sort by time
+          return a.time.localeCompare(b.time);
+        })
+        .slice(0, 10); // Get next 10 appointments
+      
+      setAppointments(upcomingAppointments);
+
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddPatient = () => {
     console.log('Navigating to: /dashboard/patient-demographics');
+    // Clear currentPatientId to ensure we're creating a new patient
+    localStorage.removeItem('currentPatientId');
     navigate('/dashboard/patient-demographics');
   };
 
@@ -63,7 +148,19 @@ const NurseDashboard = () => {
 
   const handleViewPatient = (patientId) => {
     console.log('Navigating to: /patient/' + patientId);
+    // Store patient ID for reference
+    localStorage.setItem('currentPatientId', patientId);
     navigate(`/patient/${patientId}`);
+  };
+
+  const handleViewVisit = (visitId) => {
+    console.log('Navigating to visit:', visitId);
+    navigate(`/visit/${visitId}`);
+  };
+
+  const handleViewAppointment = (appointmentId) => {
+    console.log('Navigating to appointment:', appointmentId);
+    navigate(`/appointment/${appointmentId}`);
   };
 
   const handleViewFullSchedule = () => {
@@ -71,17 +168,61 @@ const NurseDashboard = () => {
     navigate('/table-dashboard');
   };
 
+  const formatVisitTime = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
   const filteredPatients = patients.filter(patient =>
-    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    `${patient.first_name} ${patient.middle_name} ${patient.last_name}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
 
-  const filteredVisits = recentPatients.filter(patient =>
-    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(visitsSearchTerm.toLowerCase())
+  const filteredVisits = recentVisits.filter(visit =>
+    visit.patient_name.toLowerCase().includes(visitsSearchTerm.toLowerCase())
   );
 
   const filteredAppointments = appointments.filter(appointment =>
-    `${appointment.first_name} ${appointment.last_name}`.toLowerCase().includes(appointmentsSearchTerm.toLowerCase())
+    `${appointment.first_name} ${appointment.last_name}`
+      .toLowerCase()
+      .includes(appointmentsSearchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="nurse-dashboard">
+        <div className="dashboard-header">
+          <h1>SSPD Dashboard</h1>
+          <p>Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="nurse-dashboard">
+        <div className="dashboard-header">
+          <h1>SSPD Dashboard</h1>
+          <p style={{ color: 'red' }}>Error loading data: {error}</p>
+          <button onClick={fetchDashboardData} className="header-action-btn">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="nurse-dashboard">
@@ -113,30 +254,34 @@ const NurseDashboard = () => {
 
             <div className="content-scrollable">
               <h3>All Patients ({patients.length})</h3>
-              <ul>
-                {filteredPatients.map((patient) => (
-                  <li key={patient.id} className="patient-item">
-                    <div className="patient-avatar">
-                      {patient.first_name.charAt(0)}
-                      {patient.last_name.charAt(0)}
-                    </div>
-                    <div className="patient-info">
-                      <span className="patient-name">
-                        {patient.first_name} {patient.last_name}
-                      </span>
-                      <span className="patient-id">ID: {patient.id}</span>
-                    </div>
-                    <div className="patient-actions">
-                      <button 
-                        className="view-btn"
-                        onClick={() => handleViewPatient(patient.id)}
-                      >
-                        View
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {filteredPatients.length > 0 ? (
+                <ul>
+                  {filteredPatients.map((patient) => (
+                    <li key={patient.id} className="patient-item">
+                      <div className="patient-avatar">
+                        {patient.first_name.charAt(0).toUpperCase()}
+                        {patient.last_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="patient-info">
+                        <span className="patient-name">
+                          {patient.first_name} {patient.middle_name ? patient.middle_name + ' ' : ''}{patient.last_name}
+                        </span>
+                        <span className="patient-id">ID: {patient.id.slice(-6)}</span>
+                      </div>
+                      <div className="patient-actions">
+                        <button 
+                          className="view-btn"
+                          onClick={() => handleViewPatient(patient.id)}
+                        >
+                          View
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-data">No patients found</p>
+              )}
             </div>
           </div>
         </div>
@@ -162,26 +307,34 @@ const NurseDashboard = () => {
             </div>
 
             <div className="content-scrollable">
-              <h3>Recent Visits ({recentPatients.length})</h3>
-              <ul>
-                {filteredVisits.length > 0 ? (
-                  filteredVisits.slice(0, 10).map((patient) => (
-                    <li key={patient.id} className="recent-patient-item">
+              <h3>Recent Visits ({recentVisits.length})</h3>
+              {filteredVisits.length > 0 ? (
+                <ul>
+                  {filteredVisits.map((visit) => (
+                    <li 
+                      key={visit.id} 
+                      className="recent-patient-item"
+                      onClick={() => handleViewVisit(visit.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="recent-patient-info">
                         <span className="patient-name">
-                          {patient.first_name} {patient.last_name}
+                          {visit.patient_name}
+                        </span>
+                        <span className="visit-type">
+                          {visit.visit_type}
                         </span>
                         <span className="visit-time">
-                          {new Date(patient.visitTime).toLocaleString()}
+                          {formatVisitTime(visit.visitTime)}
                         </span>
                       </div>
                       <div className="status-badge new">New</div>
                     </li>
-                  ))
-                ) : (
-                  <li className="no-data">No recent visits found</li>
-                )}
-              </ul>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-data">No recent visits found</p>
+              )}
             </div>
           </div>
         </div>
@@ -207,24 +360,39 @@ const NurseDashboard = () => {
             </div>
 
             <div className="content-scrollable">
-              <h3>Today's Schedule ({appointments.length})</h3>
-              <ul>
-                {filteredAppointments.length > 0 ? (
-                  filteredAppointments.map((appointment) => (
-                    <li key={appointment.id} className="appointment-item">
-                      <div className="appointment-time">{appointment.time}</div>
+              <h3>Upcoming Schedule ({appointments.length})</h3>
+              {filteredAppointments.length > 0 ? (
+                <ul>
+                  {filteredAppointments.map((appointment) => (
+                    <li 
+                      key={appointment.id} 
+                      className="appointment-item"
+                      onClick={() => handleViewAppointment(appointment.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="appointment-time">
+                        <div>{appointment.time}</div>
+                        <div style={{ fontSize: '0.8em', color: '#666' }}>
+                          {appointment.dateString}
+                        </div>
+                      </div>
                       <div className="appointment-info">
                         <span className="patient-name">
                           {appointment.first_name} {appointment.last_name}
                         </span>
                         <span className="appointment-type">{appointment.type}</span>
+                        {appointment.reason && (
+                          <span className="appointment-reason" style={{ fontSize: '0.85em', color: '#666' }}>
+                            {appointment.reason}
+                          </span>
+                        )}
                       </div>
                     </li>
-                  ))
-                ) : (
-                  <li className="no-data">No appointments found</li>
-                )}
-              </ul>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-data">No upcoming appointments</p>
+              )}
               <button className="view-schedule-btn" onClick={handleViewFullSchedule}>
                 View Full Schedule
               </button>

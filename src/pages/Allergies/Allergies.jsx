@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import "./Allergies.css";
 
@@ -46,6 +46,55 @@ const Allergies = () => {
     "A600: Other"
   ];
 
+  // Load existing allergy data from database
+useEffect(() => {
+  const loadExistingData = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
+    if (!patientId) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/allergies/${patientId}`);
+      if (!response.ok) return;
+
+      const json = await response.json();
+      console.log("Backend returned:", json);
+
+      // ✅ Backend returns json.data as an array
+      const allergies = json.data;
+
+      if (Array.isArray(allergies) && allergies.length > 0) {
+        const formattedAllergies = allergies.map(a => ({
+          allergen: a.allergen || "",
+          reaction: a.reaction || "",
+          severity: a.severity || "",
+          category: a.category || "",
+          code: a.code || "",
+          status: a.status || "",
+        }));
+
+        setAllergyData(formattedAllergies);
+      } else {
+        setAllergyData([
+          {
+            allergen: "",
+            reaction: "",
+            severity: "",
+            category: "",
+            code: "",
+            status: "",
+          }
+        ]);
+      }
+
+    } catch (err) {
+      console.error("Error loading allergy data:", err);
+    }
+  };
+
+  loadExistingData();
+}, []);
+
+
   const handleChange = (index, field, value) => {
     const updatedData = [...allergyData];
     updatedData[index][field] = value;
@@ -55,41 +104,37 @@ const Allergies = () => {
   const handleNext = () => navigate('/dashboard/family-history');
 
   const handleSave = async () => {
-  try {
-    const patientId = localStorage.getItem('currentPatientId');
+    try {
+      const patientId = localStorage.getItem('currentPatientId');
 
-    if (!patientId) {
-      alert("Please complete Patient Demographics first");
-      navigate('/dashboard/patient-demographics');
-      return;
+      if (!patientId) {
+        alert("Please complete Patient Demographics first");
+        navigate('/dashboard/patient-demographics');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/allergies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_id: patientId,
+          allergies: allergyData
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert("Allergy information saved successfully!");
+      } else {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        alert(`Failed to save allergy information: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error saving allergy information:", error);
+      alert("Error saving allergy information.");
     }
-
-    const response = await fetch('http://localhost:5000/api/allergies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        patient_id: patientId,
-        allergies: allergyData  // ✅ Fixed: send as array
-      })
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      alert("Allergy information saved successfully!");
-      // Note: updatePreviewData and setShowPreview are referenced but not defined in your code
-      // updatePreviewData(allergyData, "allergies");
-      // setShowPreview(false);
-    } else {
-      const errorData = await response.json();
-      console.error('Error response:', errorData);
-      alert(`Failed to save allergy information: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (error) {
-    console.error("Error saving allergy information:", error);
-    alert("Error saving allergy information.");
-  }
-};
-
+  };
 
   const handleAddRow = () => {
     setAllergyData([

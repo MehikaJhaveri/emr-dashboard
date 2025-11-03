@@ -109,6 +109,6 @@ const appointmentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Appointment = mongoose.model('Appointment', appointmentSchema);
+// To this:
+export default mongoose.models.Appointment || mongoose.model('Appointment', appointmentSchema);
 
-export default Appointment;

@@ -11,13 +11,13 @@ const InsuranceInformation = () => {
     primaryCompanyName: "",
     primaryPolicyNumber: "",
     primaryGroupNumber: "",
-    primaryPlanType: "Family Insurance",
+    primaryPlanType: "",
     primaryStartDate: "",
     primaryEndDate: "",
     secondaryCompanyName: "",
     secondaryPolicyNumber: "",
     secondaryGroupNumber: "",
-    secondaryPlanType: "Family",
+    secondaryPlanType: "",
     secondaryStartDate: "",
     secondaryEndDate: "",
     contactNumber: "",
@@ -27,12 +27,85 @@ const InsuranceInformation = () => {
   const [uploadStatus, setUploadStatus] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
-  // Load existing data from context if available
-  useEffect(() => {
-    if (contextInsuranceData && Object.keys(contextInsuranceData).length > 0) {
-      setInsuranceData(contextInsuranceData);
+  // Load existing insurance data from database
+useEffect(() => {
+  const loadInsurance = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
+    if (!patientId) {
+      console.warn("No patientId found in localStorage");
+      return;
     }
-  }, [contextInsuranceData]);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/insurance/${patientId}`);
+      const result = await response.json();
+
+      console.log("🔹 Raw backend response:", result);
+
+      if (!response.ok) {
+        console.warn("⚠️ Bad response:", response.status);
+        return;
+      }
+
+      // Support both backend response formats
+      const data = result.data?.insurance || result.insurance;
+
+      if (!data) {
+        console.warn("⚠️ No insurance data found for patient:", patientId);
+        return;
+      }
+
+      console.log("✅ Extracted insurance data:", data);
+
+      // Convert backend date (MM-DD-YYYY) to YYYY-MM-DD for input fields
+      const formatDate = (dateStr) => {
+        if (!dateStr) return "";
+        const [mm, dd, yyyy] = dateStr.split("-");
+        return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+      };
+
+      const newData = {
+        primaryCompanyName: data.primary?.company_name || "",
+        primaryPolicyNumber: data.primary?.policy_number || "",
+        primaryGroupNumber: data.primary?.group_number || "",
+        primaryPlanType: data.primary?.plan_type || "",
+        primaryStartDate: formatDate(data.primary?.effective_start),
+        primaryEndDate: formatDate(data.primary?.effective_end),
+        secondaryCompanyName: data.secondary?.company_name || "",
+        secondaryPolicyNumber: data.secondary?.policy_number || "",
+        secondaryGroupNumber: data.secondary?.group_number || "",
+        secondaryPlanType: data.secondary?.plan_type || "",
+        secondaryStartDate: formatDate(data.secondary?.effective_start),
+        secondaryEndDate: formatDate(data.secondary?.effective_end),
+        contactNumber: data.insurance_contact_number || "",
+      };
+
+      console.log("✅ Mapped frontend data:", newData);
+
+      // Set data to state
+      setInsuranceData(newData);
+
+      // Show in preview if you have one
+      if (typeof updatePreviewData === "function") {
+        updatePreviewData(newData, "insurance");
+      }
+
+      // Show uploaded files if any
+      if (Array.isArray(data.uploaded_files) && data.uploaded_files.length > 0) {
+        const existingFiles = data.uploaded_files.map((f) => ({ name: f, existing: true }));
+        setSelectedFiles(existingFiles);
+
+        const uploadInput = document.querySelector(".upload-input");
+        if (uploadInput) uploadInput.value = data.uploaded_files.join(", ");
+      }
+    } catch (error) {
+      console.error("❌ Error loading insurance data:", error);
+    }
+  };
+
+  loadInsurance();
+}, []);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -50,10 +123,9 @@ const InsuranceInformation = () => {
   };
 
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedFiles(files);
-    
-    // Update the display input with selected file names
+    const files = Array.from(e.target.files); // real File objects
+    const fileObjs = files.map(f => f); // keep as File objects — they have .name
+    setSelectedFiles(fileObjs);
     const fileNames = files.map(file => file.name).join(', ');
     const displayInput = document.querySelector('.upload-input');
     if (displayInput) {
@@ -67,85 +139,109 @@ const InsuranceInformation = () => {
   };
 
   const handleSave = async () => {
-  try {
-    // Get the stored patient ID
-    const patientId = localStorage.getItem('currentPatientId');
+    try {
+      const patientId = localStorage.getItem('currentPatientId');
+
+      if (!patientId) {
+        alert("Please complete Patient Demographics first");
+        navigate('/dashboard/patient-demographics');
+        return;
+      }
+
+      // Save insurance data first
+      updatePreviewData(insuranceData, "insurance");
+
+      const res = await fetch("http://localhost:5000/api/insurance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patient_id: patientId,
+          ...insuranceData
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        console.log("Saved Insurance Data:", data);
+
+        // Upload files if any are selected
+        if (selectedFiles.length > 0) {
+          await handleFileUpload(patientId);
+        }
+
+        alert("Insurance Information saved successfully!");
+        setShowPreview(false);
+      } else {
+        alert("Failed to save Insurance Information: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("Error saving insurance info:", error);
+      alert("An error occurred while saving insurance info.");
+    }
+  };
+  const handleFileUpload = async () => {
+    const patientId = localStorage.getItem("currentPatientId");
 
     if (!patientId) {
-      alert("Please complete Patient Demographics first");
-      navigate('/dashboard/patient-demographics'); // redirect if missing
+      setUploadStatus("Patient ID not found.");
+      return;
+    }
+    if (!selectedFiles || selectedFiles.length === 0) {
+      setUploadStatus("No files selected for upload.");
       return;
     }
 
-    // Save insurance data first
-    updatePreviewData(insuranceData, "insurance");
-
-    const res = await fetch("http://localhost:5000/api/insurance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        patient_id: patientId,   // attach patient_id instead of user_id
-        ...insuranceData
-      }),
+    const formData = new FormData();
+    selectedFiles.forEach(file => {
+      // Only upload real File objects, skip existing placeholders
+      if (!file.existing) formData.append("insuranceFiles", file);
     });
 
-    const data = await res.json();
-    
-    if (res.ok) {
-      console.log("Saved Insurance Data:", data);
-
-      // Upload files if any are selected
-      if (selectedFiles.length > 0) {
-        await handleFileUpload(patientId); // pass patientId to upload as well
-      }
-
-      alert("Insurance Information saved successfully!");
-      setShowPreview(false);
-    } else {
-      alert("Failed to save Insurance Information: " + (data.error || "Unknown error"));
-    }
-  } catch (error) {
-    console.error("Error saving insurance info:", error);
-    alert("An error occurred while saving insurance info.");
-  }
-};
-
-
-  const handleFileUpload = async (patientId) => {
-    if (selectedFiles.length === 0) return;
-
     try {
-      setUploadStatus("Uploading...");
-
-      const formData = new FormData();
-      selectedFiles.forEach(file => {
-        formData.append("insuranceCards", file);
-      });
-
-      const uploadRes = await fetch(`http://localhost:5000/api/insurance/${patientId}/upload-card`, {
-        method: "POST",
-        body: formData,
-      });
+      const uploadRes = await fetch(
+        `http://localhost:5000/api/insurance/upload/${patientId}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const uploadData = await uploadRes.json();
 
-      if (uploadRes.ok) {
+      if (uploadRes.ok && uploadData.success) {
         setUploadStatus("Files uploaded successfully!");
         console.log("Uploaded files:", uploadData);
+
+        // ✅ Backend must return uploaded filenames → update UI state
+        const uploadedNames = uploadData.files || uploadData.uploaded_files || [];
+
+        const unified = [
+          ...uploadedNames.map(n => ({ name: n, existing: true }))
+        ];
+
+        setSelectedFiles(unified);
+
+        // ✅ Update readonly input with new filenames
+        const displayInput = document.querySelector('.upload-input');
+        if (displayInput) {
+          displayInput.value = unified.map(f => f.name).join(", ");
+        }
+
       } else {
-        setUploadStatus("File upload failed: " + (uploadData.error || "Unknown error"));
-        console.error("Upload error response:", uploadData);
+        setUploadStatus("File upload failed.");
       }
-    } catch (error) {
-      console.error("Error uploading files:", error);
-      setUploadStatus("File upload error occurred.");
+
+    } catch (err) {
+      console.error("Error uploading files:", err);
+      setUploadStatus("Error uploading files.");
     }
   };
 
 
   const handleNext = () => {
     updatePreviewData(insuranceData, "insurance");
-    navigate("/dashboard/ailments");
+    navigate("/dashboard/allergies");
   };
 
   const handleBrowseClick = () => {
@@ -187,7 +283,7 @@ const InsuranceInformation = () => {
             </div>
             <div className="preview-row">
               <span className="preview-label">Plan Type:</span>
-              <span className="preview-value">{insuranceData.primaryPlanType}</span>
+              <span className="preview-value">{insuranceData.primaryPlanType || "Not provided"}</span>
             </div>
             <div className="preview-row">
               <span className="preview-label">Start Date:</span>
@@ -216,7 +312,7 @@ const InsuranceInformation = () => {
               </div>
               <div className="preview-row">
                 <span className="preview-label">Plan Type:</span>
-                <span className="preview-value">{insuranceData.secondaryPlanType}</span>
+                <span className="preview-value">{insuranceData.secondaryPlanType || "Not provided"}</span>
               </div>
               <div className="preview-row">
                 <span className="preview-label">Start Date:</span>
@@ -314,23 +410,22 @@ const InsuranceInformation = () => {
           <div className="input-group">
             <label htmlFor="primaryPlanType">Plan Type</label>
             <select
-            id="primaryPlanType"
-            name="primaryPlanType"
-            value={insuranceData.primaryPlanType}
-            onChange={handleChange}
+              id="primaryPlanType"
+              name="primaryPlanType"
+              value={insuranceData.primaryPlanType}
+              onChange={handleChange}
             >
-      <option value="">Select Plan Type</option>
-      <option value="Health Maintenance Organization (HMO)">Health Maintenance Organization (HMO)</option>
-      <option value="Preferred Provider Organization (PPO)">Preferred Provider Organization (PPO)</option>
-      <option value="Point of Service (POS)">Point of Service (POS)</option>
-      <option value="Exclusive Provider Organization (EPO)">Exclusive Provider Organization (EPO)</option>
-      <option value="Medicare">Medicare</option>
-      <option value="Medicaid">Medicaid</option>
-      <option value="Private Insurance">Private Insurance</option>
-      <option value="Other">Other</option>
-    </select>
-</div>
-
+              <option value="">Select Plan Type</option>
+              <option value="Health Maintenance Organization (HMO)">Health Maintenance Organization (HMO)</option>
+              <option value="Preferred Provider Organization (PPO)">Preferred Provider Organization (PPO)</option>
+              <option value="Point of Service (POS)">Point of Service (POS)</option>
+              <option value="Exclusive Provider Organization (EPO)">Exclusive Provider Organization (EPO)</option>
+              <option value="Medicare">Medicare</option>
+              <option value="Medicaid">Medicaid</option>
+              <option value="Private Insurance">Private Insurance</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
 
           <div className="input-group date-group">
             <label>Insurance Effective Dates</label>
@@ -407,22 +502,22 @@ const InsuranceInformation = () => {
           <div className="input-group">
             <label htmlFor="secondaryPlanType">Plan Type</label>
             <select
-            id="secondaryPlanType"
-            name="secondaryPlanType"
-            value={insuranceData.secondaryPlanType}
-            onChange={handleChange}
+              id="secondaryPlanType"
+              name="secondaryPlanType"
+              value={insuranceData.secondaryPlanType}
+              onChange={handleChange}
             >
-      <option value="">Select Plan Type</option>
-      <option value="Health Maintenance Organization (HMO)">Health Maintenance Organization (HMO)</option>
-      <option value="Preferred Provider Organization (PPO)">Preferred Provider Organization (PPO)</option>
-      <option value="Point of Service (POS)">Point of Service (POS)</option>
-      <option value="Exclusive Provider Organization (EPO)">Exclusive Provider Organization (EPO)</option>
-      <option value="Medicare">Medicare</option>
-      <option value="Medicaid">Medicaid</option>
-      <option value="Private Insurance">Private Insurance</option>
-      <option value="Other">Other</option>
-    </select>
-</div>
+              <option value="">Select Plan Type</option>
+              <option value="Health Maintenance Organization (HMO)">Health Maintenance Organization (HMO)</option>
+              <option value="Preferred Provider Organization (PPO)">Preferred Provider Organization (PPO)</option>
+              <option value="Point of Service (POS)">Point of Service (POS)</option>
+              <option value="Exclusive Provider Organization (EPO)">Exclusive Provider Organization (EPO)</option>
+              <option value="Medicare">Medicare</option>
+              <option value="Medicaid">Medicaid</option>
+              <option value="Private Insurance">Private Insurance</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
 
           <div className="input-group date-group">
             <label>Insurance Effective Dates</label>
@@ -517,7 +612,6 @@ const InsuranceInformation = () => {
           Next
         </button>
       </div>
-
       {showPreview && <PreviewModal />}
     </div>
   );

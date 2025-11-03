@@ -109,6 +109,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
       blood_group: bloodGroupMap[bloodGroup] || bloodGroup,
       address: {
         street: address1 || "",
+        street2: address2 || "",
         city: city,
         postal_code: postalCode,
         district: district,
@@ -174,7 +175,6 @@ router.post("/", upload.single("photo"), async (req, res) => {
       time: `${hours}:${minutes}` // 24-hour HH:MM format
     };
 
-    // Initialize empty social_history so it appears on creation
     // Initialize social_history with proper structure
     patientData.social_history = {
       tobacco_smoking: {},
@@ -346,6 +346,7 @@ router.put("/:id", upload.single("photo"), async (req, res) => {
     if (dob) patient.date_of_birth = convertDateFormat(dob);
     if (gender) patient.gender = gender;
     if (address1 !== undefined) patient.address.street = address1;
+    if (address2 !== undefined) patient.address.street2 = address2; // FIXED: Now properly handling address2
     if (city) patient.address.city = city;
     if (postalCode) patient.address.postal_code = postalCode;
     if (district) patient.address.district = district;
