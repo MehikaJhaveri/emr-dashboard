@@ -8,10 +8,24 @@ const ContactInformation = () => {
   const navigate = useNavigate();
   const [showPreview, setShowPreview] = useState(false);
 
+  // Common country codes
+  const countryCodes = [
+    { code: '+1', country: 'US/CA' },
+    { code: '+44', country: 'UK' },
+    { code: '+91', country: 'IN' },
+    { code: '+61', country: 'AU' },
+    { code: '+81', country: 'JP' },
+    { code: '+86', country: 'CN' },
+    { code: '+33', country: 'FR' },
+    { code: '+49', country: 'DE' },
+    { code: '+39', country: 'IT' },
+    { code: '+7', country: 'RU' },
+  ];
+
   const [formData, setFormData] = useState({
-    mobilePhone: '',
-    homePhone: '',
-    workPhone: '',
+    mobilePhone: { code: '+91', number: '' },
+    homePhone: { code: '+91', number: '' },
+    workPhone: { code: '+91', number: '' },
     email: '',
     preferredContactMethod: [],
     emergencyContacts: [
@@ -20,7 +34,7 @@ const ContactInformation = () => {
         middleName: '',
         lastName: '',
         relationship: '',
-        phone: '',
+        phone: { code: '+91', number: '' },
         email: ''
       }
     ]
@@ -39,30 +53,38 @@ const ContactInformation = () => {
           if (json.success && json.data?.contact_info) {
             const data = json.data.contact_info;
             
-            // Format phone numbers from nested structure
-            const mobilePhone = data.mobile ? `${data.mobile.code || ''} ${data.mobile.number || ''}`.trim() : '';
-            const homePhone = data.home_phone ? `${data.home_phone.code || ''} ${data.home_phone.number || ''}`.trim() : '';
-            const workPhone = data.work_phone ? `${data.work_phone.code || ''} ${data.work_phone.number || ''}`.trim() : '';
+            // Normalize preferred contact methods to lowercase
+            const normalizedMethods = (data.preferred_contact_methods || []).map(method => {
+              const lowerMethod = method.toLowerCase();
+              // Map backend values to frontend values
+              if (lowerMethod === 'email') return 'email';
+              if (lowerMethod === 'phone' || lowerMethod === 'phone call') return 'phone';
+              if (lowerMethod === 'messages' || lowerMethod === 'message') return 'messages';
+              return lowerMethod;
+            });
+
+            // Remove duplicates
+            const uniqueMethods = [...new Set(normalizedMethods)];
             
             setFormData({
-              mobilePhone,
-              homePhone,
-              workPhone,
+              mobilePhone: data.mobile || { code: '+91', number: '' },
+              homePhone: data.home_phone || { code: '+91', number: '' },
+              workPhone: data.work_phone || { code: '+91', number: '' },
               email: data.email || '',
-              preferredContactMethod: data.preferred_contact_methods || [],
+              preferredContactMethod: uniqueMethods,
               emergencyContacts: (data.emergency_contact && data.emergency_contact.length > 0) ? data.emergency_contact.map(contact => ({
                 firstName: contact.name?.first || '',
                 middleName: contact.name?.middle || '',
                 lastName: contact.name?.last || '',
                 relationship: contact.relationship || '',
-                phone: contact.phone ? `${contact.phone.code || ''} ${contact.phone.number || ''}`.trim() : '',
+                phone: contact.phone || { code: '+91', number: '' },
                 email: contact.email || ''
               })) : [{
                 firstName: '',
                 middleName: '',
                 lastName: '',
                 relationship: '',
-                phone: '',
+                phone: { code: '+91', number: '' },
                 email: ''
               }]
             });
@@ -75,6 +97,18 @@ const ContactInformation = () => {
 
     loadExistingData();
   }, []);
+
+  const handlePhoneChange = (field, type, value) => {
+    const updatedData = {
+      ...formData,
+      [field]: {
+        ...formData[field],
+        [type]: value
+      }
+    };
+    setFormData(updatedData);
+    updatePreviewData(updatedData, 'contact');
+  };
 
   const handleChange = (e, index = null) => {
     const { name, value } = e.target;
@@ -99,10 +133,31 @@ const ContactInformation = () => {
     }
   };
 
+  const handleEmergencyPhoneChange = (index, type, value) => {
+    const updatedContacts = [...formData.emergencyContacts];
+    updatedContacts[index] = {
+      ...updatedContacts[index],
+      phone: {
+        ...updatedContacts[index].phone,
+        [type]: value
+      }
+    };
+    
+    const updatedData = { ...formData, emergencyContacts: updatedContacts };
+    setFormData(updatedData);
+    updatePreviewData(updatedData, 'contact');
+  };
+
   const handleContactMethodChange = (method) => {
-    const updatedMethods = formData.preferredContactMethod.includes(method)
-      ? formData.preferredContactMethod.filter(m => m !== method)
-      : [...formData.preferredContactMethod, method];
+    // Toggle the method - add if not present, remove if present
+    let updatedMethods;
+    if (formData.preferredContactMethod.includes(method)) {
+      // Remove the method
+      updatedMethods = formData.preferredContactMethod.filter(m => m !== method);
+    } else {
+      // Add the method
+      updatedMethods = [...formData.preferredContactMethod, method];
+    }
     
     const updatedData = { ...formData, preferredContactMethod: updatedMethods };
     setFormData(updatedData);
@@ -115,7 +170,7 @@ const ContactInformation = () => {
       middleName: '',
       lastName: '',
       relationship: '',
-      phone: '',
+      phone: { code: '+91', number: '' },
       email: ''
     };
     
@@ -152,28 +207,43 @@ const ContactInformation = () => {
       const patientId = localStorage.getItem('currentPatientId');
 
       if (!patientId) {
-      alert("Please complete Patient Demographics first");
-      navigate('/dashboard/patient-demographics');
-      return;
-    }
+        alert("Please complete Patient Demographics first");
+        navigate('/dashboard/patient-demographics');
+        return;
+      }
 
-      // Use PUT for updates (contact info is required at patient creation)
+      // Prepare data - phone objects are already in the correct format
+      const dataToSend = {
+        mobilePhone: formData.mobilePhone,
+        homePhone: formData.homePhone,
+        workPhone: formData.workPhone,
+        email: formData.email,
+        preferredContactMethod: formData.preferredContactMethod,
+        emergencyContacts: formData.emergencyContacts
+      };
+
+      console.log('Sending data:', JSON.stringify(dataToSend, null, 2));
+
+      // Use PUT for updates
       const response = await fetch(`http://localhost:5000/api/contact-information/${patientId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(dataToSend)
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('Save successful:', result);
         alert("Contact Information updated successfully!");
         setShowPreview(false);
       } else {
         const errorData = await response.json();
+        console.error('Backend error:', errorData);
         alert(errorData.message || "Failed to save Contact Information.");
       }
     } catch (error) {
       console.error("Error saving contact information:", error);
-      alert("Error saving contact information.");
+      alert("Error saving contact information: " + error.message);
     }
   };
 
@@ -186,11 +256,17 @@ const ContactInformation = () => {
   };
 
   const formatPhoneNumber = (phone) => {
+    if (phone && typeof phone === 'object') {
+      return phone.number ? `${phone.code} ${phone.number}` : 'Not provided';
+    }
     return phone ? phone : 'Not provided';
   };
 
   const formatPreferredMethods = (methods) => {
-    return methods.length > 0 ? methods.join(', ') : 'None selected';
+    return methods.length > 0 ? methods.map(m => {
+      // Capitalize first letter for display
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    }).join(', ') : 'None selected';
   };
 
   return (
@@ -207,14 +283,24 @@ const ContactInformation = () => {
             <div className="contact-row">
               <label className="contact-label">Mobile/Cell Phone</label>
               <div className="phone-input">
-                <span className="phone-prefix">+91</span>
+                <select 
+                  className="phone-code-select"
+                  value={formData.mobilePhone.code}
+                  onChange={(e) => handlePhoneChange('mobilePhone', 'code', e.target.value)}
+                >
+                  {countryCodes.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} ({item.country})
+                    </option>
+                  ))}
+                </select>
                 <input 
                   className="phone-number"
                   type="text" 
                   name="mobilePhone" 
-                  value={formData.mobilePhone} 
-                  onChange={handleChange}
-                  placeholder="344-716-6844"
+                  value={formData.mobilePhone.number} 
+                  onChange={(e) => handlePhoneChange('mobilePhone', 'number', e.target.value)}
+                  placeholder="3447166844"
                 />
               </div>
             </div>
@@ -222,14 +308,24 @@ const ContactInformation = () => {
             <div className="contact-row">
               <label className="contact-label">Home Phone No.</label>
               <div className="phone-input">
-                
+                <select 
+                  className="phone-code-select"
+                  value={formData.homePhone.code}
+                  onChange={(e) => handlePhoneChange('homePhone', 'code', e.target.value)}
+                >
+                  {countryCodes.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} ({item.country})
+                    </option>
+                  ))}
+                </select>
                 <input 
                   className="phone-number"
                   type="text" 
                   name="homePhone" 
-                  value={formData.homePhone} 
-                  onChange={handleChange}
-                  placeholder="978-960-9691"
+                  value={formData.homePhone.number} 
+                  onChange={(e) => handlePhoneChange('homePhone', 'number', e.target.value)}
+                  placeholder="9789609691"
                 />
               </div>
             </div>
@@ -237,14 +333,24 @@ const ContactInformation = () => {
             <div className="contact-row">
               <label className="contact-label">Work Phone No.</label>
               <div className="phone-input">
-                <span className="phone-prefix">+91</span>
+                <select 
+                  className="phone-code-select"
+                  value={formData.workPhone.code}
+                  onChange={(e) => handlePhoneChange('workPhone', 'code', e.target.value)}
+                >
+                  {countryCodes.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} ({item.country})
+                    </option>
+                  ))}
+                </select>
                 <input 
                   className="phone-number"
                   type="text" 
                   name="workPhone" 
-                  value={formData.workPhone} 
-                  onChange={handleChange}
-                  placeholder="401-782-5419"
+                  value={formData.workPhone.number} 
+                  onChange={(e) => handlePhoneChange('workPhone', 'number', e.target.value)}
+                  placeholder="4017825419"
                 />
               </div>
             </div>
@@ -349,12 +455,23 @@ const ContactInformation = () => {
               <div className="input-group phone-group">
                 <label htmlFor={`emergencyPhone-${index}`}>Emergency Contact No.</label>
                 <div className="phone-input">
+                  <select 
+                    className="phone-code-select"
+                    value={contact.phone.code}
+                    onChange={(e) => handleEmergencyPhoneChange(index, 'code', e.target.value)}
+                  >
+                    {countryCodes.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.code} ({item.country})
+                      </option>
+                    ))}
+                  </select>
                   <input 
                     id={`emergencyPhone-${index}`}
                     type="tel"
                     name="emergencyPhone"
-                    value={contact.phone}
-                    onChange={(e) => handleChange(e, index)}
+                    value={contact.phone.number}
+                    onChange={(e) => handleEmergencyPhoneChange(index, 'number', e.target.value)}
                     placeholder="Enter number"
                     className="phone-number"
                   />
@@ -431,7 +548,7 @@ const ContactInformation = () => {
                         <strong>Relationship:</strong> {contact.relationship || 'Not provided'}
                       </div>
                       <div className="preview-item">
-                        <strong>Phone:</strong> {contact.phone || 'Not provided'}
+                        <strong>Phone:</strong> {formatPhoneNumber(contact.phone)}
                       </div>
                       <div className="preview-item">
                         <strong>Email:</strong> {contact.email || 'Not provided'}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./TableDashboard.css";
 
@@ -7,30 +7,130 @@ const TableDashboard = () => {
   const [nameFilter, setNameFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const patients = [
-    { name: "Amelia Adams", dob: "01/01/1990", sex: "Female", status: "Active", appointmentTime: "9:00 AM", appointmentDate: "20-10-2025", doctor: "Dr. Smith" },
-    { name: "Ava Armstrong", dob: "02/01/1990", sex: "Female", status: "Active", appointmentTime: "10:30 AM", appointmentDate: "20-10-2025", doctor: "Dr. Johnson" },
-    { name: "Bella Brooks", dob: "03/01/1990", sex: "Female", status: "Active", appointmentTime: "11:00 AM", appointmentDate: "21-10-2025", doctor: "Dr. Smith" },
-    { name: "Chloe Carter", dob: "04/01/1990", sex: "Male", status: "Active", appointmentTime: "1:30 PM", appointmentDate: "21-10-2025", doctor: "Dr. Williams" },
-    { name: "Daniel Davis", dob: "05/01/1990", sex: "Male", status: "Active", appointmentTime: "2:00 PM", appointmentDate: "22-10-2025", doctor: "Dr. Johnson" },
-    { name: "Emily Edwards", dob: "06/01/1990", sex: "Female", status: "Active", appointmentTime: "3:15 PM", appointmentDate: "22-10-2025", doctor: "Dr. Smith" },
-    { name: "Gavin Green", dob: "07/01/1990", sex: "Male", status: "Active", appointmentTime: "4:00 PM", appointmentDate: "23-10-2025", doctor: "Dr. Williams" },
-    { name: "Leo Lawson", dob: "08/01/1990", sex: "Male", status: "Active", appointmentTime: "9:30 AM", appointmentDate: "23-10-2025", doctor: "Dr. Johnson" },
-    { name: "Zoey Zephyr", dob: "09/01/1990", sex: "Male", status: "Active", appointmentTime: "11:30 AM", appointmentDate: "24-10-2025", doctor: "Dr. Smith" },
-  ];
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
 
-  const filteredPatients = patients.filter((p) => {
-    const matchesName = p.name.toLowerCase().includes(nameFilter.toLowerCase());
-    const matchesDoctor = p.doctor.toLowerCase().includes(doctorFilter.toLowerCase());
-    const matchesDate = dateFilter === "" || p.appointmentDate === dateFilter;
+  const fetchAppointments = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/appointments');
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointments');
+      }
+      
+      const result = await response.json();
+      const appointmentsData = Array.isArray(result) ? result : (result.data || []);
+      
+      // Map the data to include status (default to Active)
+      const mappedAppointments = appointmentsData.map(apt => ({
+        ...apt,
+        status: apt.status || 'Active', // Add status field if not present
+        fullName: `${apt.patient_name?.first || ''} ${apt.patient_name?.middle || ''} ${apt.patient_name?.last || ''}`.trim()
+      }));
+      
+      setAppointments(mappedAppointments);
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusToggle = async (appointmentId, currentStatus) => {
+    const newStatus = currentStatus === 'Active' ? 'Completed' : 'Active';
+    
+    try {
+      // Update locally first for immediate UI feedback
+      setAppointments(prevAppointments =>
+        prevAppointments.map(apt =>
+          apt._id === appointmentId ? { ...apt, status: newStatus } : apt
+        )
+      );
+
+      // Optional: Update in database if you have an update endpoint
+      // await fetch(`http://localhost:5000/api/appointments/${appointmentId}`, {
+      //   method: 'PATCH',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({ status: newStatus }),
+      // });
+
+    } catch (err) {
+      console.error('Error updating status:', err);
+      // Revert on error
+      setAppointments(prevAppointments =>
+        prevAppointments.map(apt =>
+          apt._id === appointmentId ? { ...apt, status: currentStatus } : apt
+        )
+      );
+    }
+  };
+
+  const parseDateForFilter = (dateString) => {
+    // Convert MM-DD-YYYY to YYYY-MM-DD for comparison
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[0]}-${parts[1]}`;
+    }
+    return dateString;
+  };
+
+  const filteredAppointments = appointments.filter((apt) => {
+    const matchesName = apt.fullName.toLowerCase().includes(nameFilter.toLowerCase());
+    const matchesDoctor = (apt.doctor || '').toLowerCase().includes(doctorFilter.toLowerCase());
+    const matchesDate = dateFilter === "" || parseDateForFilter(apt.appointment_date) === dateFilter;
     
     return matchesName && matchesDoctor && matchesDate;
   });
 
   const handleBackToDashboard = () => {
-    navigate('/nurse-dashboard');
+    navigate('/dashboard');
   };
+
+  if (loading) {
+    return (
+      <div className="pdb-container">
+        <div className="pdb-header-bar">
+          <button className="pdb-back-btn" onClick={handleBackToDashboard}>
+            ← Back to Dashboard
+          </button>
+          <h2 className="pdb-title">Patient Appointment Schedule</h2>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          Loading appointments...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pdb-container">
+        <div className="pdb-header-bar">
+          <button className="pdb-back-btn" onClick={handleBackToDashboard}>
+            ← Back to Dashboard
+          </button>
+          <h2 className="pdb-title">Patient Appointment Schedule</h2>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+          Error loading appointments: {error}
+          <br />
+          <button onClick={fetchAppointments} style={{ marginTop: '10px' }}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pdb-container">
@@ -90,7 +190,7 @@ const TableDashboard = () => {
 
       {/* Results Count */}
       <div className="pdb-results-count">
-        Showing {filteredPatients.length} of {patients.length} appointments
+        Showing {filteredAppointments.length} of {appointments.length} appointments
       </div>
 
       {/* Table */}
@@ -99,25 +199,32 @@ const TableDashboard = () => {
           <thead>
             <tr>
               <th>NAME</th>
-              <th>DOB</th>
-              <th>SEX</th>
+              <th>AGE</th>
               <th>APPOINTMENT DATE</th>
               <th>APPOINTMENT TIME</th>
+              <th>APPOINTMENT TYPE</th>
               <th>DOCTOR</th>
               <th>STATUS</th>
             </tr>
           </thead>
           <tbody>
-            {filteredPatients.length > 0 ? (
-              filteredPatients.map((p, idx) => (
-                <tr key={idx}>
-                  <td>{p.name}</td>
-                  <td>{p.dob}</td>
-                  <td>{p.sex}</td>
-                  <td>{p.appointmentDate}</td>
-                  <td>{p.appointmentTime}</td>
-                  <td>{p.doctor}</td>
-                  <td>{p.status}</td>
+            {filteredAppointments.length > 0 ? (
+              filteredAppointments.map((apt) => (
+                <tr key={apt._id}>
+                  <td>{apt.fullName}</td>
+                  <td>{apt.age}</td>
+                  <td>{apt.appointment_date}</td>
+                  <td>{apt.appointment_time}</td>
+                  <td>{apt.appointment_type}</td>
+                  <td>{apt.doctor || 'Not Assigned'}</td>
+                  <td>
+                    <button
+                      className={`pdb-status-toggle ${apt.status === 'Active' ? 'active' : 'completed'}`}
+                      onClick={() => handleStatusToggle(apt._id, apt.status)}
+                    >
+                      {apt.status}
+                    </button>
+                  </td>
                 </tr>
               ))
             ) : (

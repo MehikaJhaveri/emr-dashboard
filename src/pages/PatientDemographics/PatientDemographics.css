@@ -176,8 +176,7 @@ select option {
   align-items: center;
 }
 
-.upload-btn,
-.remove-btn {
+.upload-btn{
   padding: 6px 8px;
   font-size: 12px;
   border-radius: 6px;

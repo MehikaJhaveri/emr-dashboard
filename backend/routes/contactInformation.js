@@ -5,29 +5,42 @@ import Patient from "../models/patients.js";
 
 const router = express.Router();
 
-// Helper function to parse phone number into code and number
-const parsePhoneNumber = (phoneStr) => {
-  if (!phoneStr) return null;
+// Helper function to parse phone number - handles both string and object formats
+const parsePhoneNumber = (phone) => {
+  if (!phone) return null;
   
-  // Remove any spaces, dashes, or parentheses
-  const cleaned = phoneStr.replace(/[\s\-\(\)]/g, '');
-  
-  // If it starts with +, extract country code
-  if (cleaned.startsWith('+')) {
-    const match = cleaned.match(/^\+(\d{1,3})(\d{7,10})$/);
-    if (match) {
-      return {
-        code: `+${match[1]}`,
-        number: match[2]
-      };
-    }
+  // If it's already an object with code and number, return it
+  if (typeof phone === 'object' && phone.code && phone.number) {
+    return {
+      code: phone.code,
+      number: phone.number
+    };
   }
   
-  // Default to +91 for Indian numbers
-  return {
-    code: '+91',
-    number: cleaned.slice(-10) // Take last 10 digits
-  };
+  // If it's a string, parse it
+  if (typeof phone === 'string') {
+    // Remove any spaces, dashes, or parentheses
+    const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+    
+    // If it starts with +, extract country code
+    if (cleaned.startsWith('+')) {
+      const match = cleaned.match(/^\+(\d{1,3})(\d{7,10})$/);
+      if (match) {
+        return {
+          code: `+${match[1]}`,
+          number: match[2]
+        };
+      }
+    }
+    
+    // Default to +91 for Indian numbers
+    return {
+      code: '+91',
+      number: cleaned.slice(-10) // Take last 10 digits
+    };
+  }
+  
+  return null;
 };
 
 // Helper function to capitalize preferred contact methods to match schema enum
@@ -35,7 +48,8 @@ const normalizeContactMethod = (method) => {
   const methodMap = {
     'phone': 'Phone Call',
     'messages': 'Messages',
-    'email': 'Email'
+    'email': 'Email',
+    'phone call': 'Phone Call'
   };
   return methodMap[method.toLowerCase()] || method;
 };
@@ -230,10 +244,12 @@ router.put("/:patient_id", async (req, res) => {
       });
     }
 
-    // Parse phone numbers
+    // Parse phone numbers - handles both string and object formats
     if (mobilePhone) {
       const mobileParsed = parsePhoneNumber(mobilePhone);
-      patient.contact_info.mobile = mobileParsed;
+      if (mobileParsed) {
+        patient.contact_info.mobile = mobileParsed;
+      }
     }
 
     if (email) {
@@ -242,12 +258,16 @@ router.put("/:patient_id", async (req, res) => {
 
     if (homePhone) {
       const homeParsed = parsePhoneNumber(homePhone);
-      patient.contact_info.home_phone = homeParsed;
+      if (homeParsed) {
+        patient.contact_info.home_phone = homeParsed;
+      }
     }
 
     if (workPhone) {
       const workParsed = parsePhoneNumber(workPhone);
-      patient.contact_info.work_phone = workParsed;
+      if (workParsed) {
+        patient.contact_info.work_phone = workParsed;
+      }
     }
 
     if (Array.isArray(preferredContactMethod)) {

@@ -2,26 +2,20 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { GridFSBucket } from "mongodb";
+import mongoose from "mongoose";
 import Patient from "../models/patients.js";
 
 const router = express.Router();
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory if it doesn't exist (fallback)
 const uploadsDir = "uploads";
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "patient-" + uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Configure multer for GridFS storage
+const storage = multer.memoryStorage(); // Store in memory temporarily
 
 const upload = multer({
   storage: storage,
@@ -39,6 +33,47 @@ const upload = multer({
   },
 });
 
+// Helper function to upload file to GridFS
+const uploadToGridFS = async (file) => {
+  console.log("=== uploadToGridFS called ===");
+  console.log("MongoDB connection state:", mongoose.connection.readyState);
+  console.log("Database name:", mongoose.connection.db?.databaseName);
+  
+  return new Promise((resolve, reject) => {
+    try {
+      const bucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: "patientImages",
+      });
+
+      console.log("✓ GridFS bucket created");
+      console.log("File to upload:", file.originalname);
+      console.log("Buffer size:", file.buffer?.length, "bytes");
+
+      const uploadStream = bucket.openUploadStream(file.originalname, {
+        contentType: file.mimetype,
+      });
+
+      console.log("✓ Upload stream opened");
+
+      uploadStream.end(file.buffer);
+
+      uploadStream.on("finish", () => {
+        console.log("✓ Upload stream finished");
+        console.log("Generated file ID:", uploadStream.id);
+        resolve(uploadStream.id);
+      });
+
+      uploadStream.on("error", (error) => {
+        console.error("✗ Upload stream error:", error);
+        reject(error);
+      });
+    } catch (error) {
+      console.error("✗ Error in uploadToGridFS:", error);
+      reject(error);
+    }
+  });
+};
+
 // Helper function to convert date format from YYYY-MM-DD to MM-DD-YYYY
 const convertDateFormat = (dateStr) => {
   if (!dateStr) return "";
@@ -49,6 +84,10 @@ const convertDateFormat = (dateStr) => {
 // POST - Create new patient demographics
 router.post("/", upload.single("photo"), async (req, res) => {
   try {
+    console.log("=== POST REQUEST RECEIVED ===");
+    console.log("req.file:", req.file);
+    console.log("req.body:", req.body);
+
     const {
       firstName,
       middleName,
@@ -131,12 +170,32 @@ router.post("/", upload.single("photo"), async (req, res) => {
       patientData.pan = panNumber;
     }
 
-    // Handle photo upload
+    // Handle photo upload to GridFS
     if (req.file) {
-      const mongoose = await import("mongoose");
-      patientData.img = {
-        file_id: new mongoose.Types.ObjectId(),
-      };
+      console.log("=== FILE UPLOAD DETECTED ===");
+      console.log("File buffer size:", req.file.buffer?.length);
+      console.log("File mimetype:", req.file.mimetype);
+      console.log("File originalname:", req.file.originalname);
+      
+      try {
+        console.log("Attempting to upload to GridFS...");
+        const fileId = await uploadToGridFS(req.file);
+        console.log("✓ GridFS upload successful! File ID:", fileId);
+        
+        patientData.img = {
+          file_id: fileId,
+        };
+        console.log("✓ Image data added to patientData:", patientData.img);
+      } catch (uploadError) {
+        console.error("✗ Error uploading image to GridFS:", uploadError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+          error: uploadError.message,
+        });
+      }
+    } else {
+      console.log("⚠ No file received in request");
     }
 
     // Add placeholder data for required fields that aren't in demographics form
@@ -158,7 +217,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
       },
       insurance_contact_number: "0000000000",
       insurance_card_img: {
-        file_id: new (await import("mongoose")).Types.ObjectId()
+        file_id: new mongoose.Types.ObjectId()
       }
     };
 
@@ -171,8 +230,8 @@ router.post("/", upload.single("photo"), async (req, res) => {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     
     patientData.vitals = {
-      date: `${day}-${month}-${year}`, // DD-MM-YYYY format
-      time: `${hours}:${minutes}` // 24-hour HH:MM format
+      date: `${day}-${month}-${year}`,
+      time: `${hours}:${minutes}`
     };
 
     // Initialize social_history with proper structure
@@ -194,9 +253,15 @@ router.post("/", upload.single("photo"), async (req, res) => {
       nutrients_history: {}
     };
 
+    console.log("=== CREATING NEW PATIENT ===");
+    console.log("Patient data to save:", JSON.stringify(patientData, null, 2));
+
     // Create new patient
     const newPatient = new Patient(patientData);
     await newPatient.save();
+
+    console.log("✓ Patient saved successfully!");
+    console.log("Saved patient img field:", newPatient.img);
 
     res.status(201).json({
       success: true,
@@ -204,11 +269,13 @@ router.post("/", upload.single("photo"), async (req, res) => {
       data: {
         id: newPatient._id,
         name: `${firstName} ${middleName} ${lastName}`.trim(),
-        photoPath: req.file ? `/uploads/${req.file.filename}` : null,
+        photoFileId: req.file ? newPatient.img.file_id : null,
       },
     });
   } catch (error) {
-    console.error("Error saving patient demographics:", error);
+    console.error("=== ERROR SAVING PATIENT ===");
+    console.error("Error:", error);
+    console.error("Stack:", error.stack);
 
     // Handle validation errors
     if (error.name === "ValidationError") {
@@ -295,6 +362,50 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// GET - Retrieve image file by file_id
+router.get("/file/:id", async (req, res) => {
+  try {
+    const bucket = new GridFSBucket(mongoose.connection.db, {
+      bucketName: "patientImages",
+    });
+
+    const fileId = new mongoose.Types.ObjectId(req.params.id);
+
+    // Check if file exists
+    const files = await bucket.find({ _id: fileId }).toArray();
+    
+    if (!files || files.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Image not found",
+      });
+    }
+
+    // Set appropriate content type
+    res.set("Content-Type", files[0].contentType || "image/jpeg");
+
+    // Stream the file
+    const downloadStream = bucket.openDownloadStream(fileId);
+
+    downloadStream.on("error", (error) => {
+      console.error("Error streaming image:", error);
+      res.status(404).json({
+        success: false,
+        message: "Error retrieving image",
+      });
+    });
+
+    downloadStream.pipe(res);
+  } catch (error) {
+    console.error("Error fetching image:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch image",
+      error: error.message,
+    });
+  }
+});
+
 // PUT - Update patient demographics
 router.put("/:id", upload.single("photo"), async (req, res) => {
   try {
@@ -346,7 +457,7 @@ router.put("/:id", upload.single("photo"), async (req, res) => {
     if (dob) patient.date_of_birth = convertDateFormat(dob);
     if (gender) patient.gender = gender;
     if (address1 !== undefined) patient.address.street = address1;
-    if (address2 !== undefined) patient.address.street2 = address2; // FIXED: Now properly handling address2
+    if (address2 !== undefined) patient.address.street2 = address2;
     if (city) patient.address.city = city;
     if (postalCode) patient.address.postal_code = postalCode;
     if (district) patient.address.district = district;
@@ -357,12 +468,21 @@ router.put("/:id", upload.single("photo"), async (req, res) => {
     if (aadharNumber) patient.aadhaar = aadharNumber;
     if (panNumber) patient.pan = panNumber;
 
-    // Handle photo upload
+    // Handle photo upload to GridFS
     if (req.file) {
-      const mongoose = await import("mongoose");
-      patient.img = {
-        file_id: new mongoose.Types.ObjectId(),
-      };
+      try {
+        const fileId = await uploadToGridFS(req.file);
+        patient.img = {
+          file_id: fileId,
+        };
+      } catch (uploadError) {
+        console.error("Error uploading image to GridFS:", uploadError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to upload image",
+          error: uploadError.message,
+        });
+      }
     }
 
     await patient.save();
@@ -405,6 +525,18 @@ router.delete("/:id", async (req, res) => {
         success: false,
         message: "Patient not found",
       });
+    }
+
+    // Delete associated image from GridFS if exists
+    if (patient.img && patient.img.file_id) {
+      try {
+        const bucket = new GridFSBucket(mongoose.connection.db, {
+          bucketName: "patientImages",
+        });
+        await bucket.delete(patient.img.file_id);
+      } catch (deleteError) {
+        console.error("Error deleting image from GridFS:", deleteError);
+      }
     }
 
     res.status(200).json({

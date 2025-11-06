@@ -25,7 +25,7 @@ const PatientDemographics = () => {
     occupation: "",
     aadharNumber: "",
     panNumber: "",
-    photo: null, // will hold File
+    photo: null,
   });
 
   const [errors, setErrors] = useState({});
@@ -33,7 +33,7 @@ const PatientDemographics = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // cleanup object URLs
+  // Cleanup object URLs
   useEffect(() => {
     return () => {
       if (imagePreview && imagePreview.startsWith("blob:")) {
@@ -50,30 +50,56 @@ const PatientDemographics = () => {
 
       try {
         const response = await fetch(`http://localhost:5000/api/patient-demographics/${patientId}`);
-        if (response.ok) {
-          const json = await response.json();
-          if (json.success && json.data) {
-            const data = json.data;
-            setFormData({
-              firstName: data.name?.first || "",
-              middleName: data.name?.middle || "",
-              lastName: data.name?.last || "",
-              dob: data.date_of_birth ? convertDateFormatForInput(data.date_of_birth) : "",
-              gender: data.gender || "",
-              address1: data.address?.street || "",
-              address2: data.address?.street2 || "", // FIXED: Now properly loading street2
-              city: data.address?.city || "",
-              postalCode: data.address?.postal_code || "",
-              district: data.address?.district || "",
-              state: data.address?.state || "",
-              country: data.address?.country || "",
-              bloodGroup: data.blood_group || "",
-              occupation: data.occupation || "",
-              aadharNumber: data.aadhaar || "",
-              panNumber: data.pan || "",
-              photo: null,
-            });
-          }
+        if (!response.ok) return;
+
+        const json = await response.json();
+        console.log("Loaded patient data:", json);
+        
+        if (!json.success || !json.data) return;
+
+        const data = json.data;
+        
+        setFormData({
+          firstName: data.name?.first || "",
+          middleName: data.name?.middle || "",
+          lastName: data.name?.last || "",
+          dob: data.date_of_birth ? convertDateFormatForInput(data.date_of_birth) : "",
+          gender: data.gender || "",
+          address1: data.address?.street || "",
+          address2: data.address?.street2 || "",
+          city: data.address?.city || "",
+          postalCode: data.address?.postal_code || "",
+          district: data.address?.district || "",
+          state: data.address?.state || "",
+          country: data.address?.country || "",
+          bloodGroup: data.blood_group || "",
+          occupation: data.occupation || "",
+          aadharNumber: data.aadhaar || "",
+          panNumber: data.pan || "",
+          photo: null,
+        });
+
+        // Load image from backend - CORRECTED FOR GRIDFS
+        console.log("Image data from backend:", data.img);
+        
+        if (data.img && data.img.file_id) {
+          // Backend stores file_id in GridFS
+          const imageUrl = `http://localhost:5000/api/patient-demographics/file/${data.img.file_id}`;
+          console.log("Loading image from GridFS:", imageUrl);
+          
+          // Test if the image loads
+          const img = new Image();
+          img.onload = () => {
+            console.log("✓ Image loaded successfully from GridFS!");
+            setImagePreview(imageUrl);
+          };
+          img.onerror = (error) => {
+            console.error("✗ Failed to load image from GridFS:", error);
+            console.error("URL attempted:", imageUrl);
+          };
+          img.src = imageUrl;
+        } else {
+          console.log("No image data found in patient record");
         }
       } catch (error) {
         console.error("Error loading patient data:", error);
@@ -117,7 +143,7 @@ const PatientDemographics = () => {
     }
 
     try {
-      // fallback Zippopotam
+      // Fallback Zippopotam
       const response = await fetch(`https://api.zippopotam.us/IN/${postalCode}`);
       if (response.ok) {
         const data = await response.json();
@@ -175,20 +201,31 @@ const PatientDemographics = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (validateForm()) {
+    const handleSave = async () => {
+      if (!validateForm()) return;
+
       try {
         const patientId = localStorage.getItem('currentPatientId');
         const formDataToSend = new FormData();
         
+        console.log("=== FRONTEND SAVE ===");
+        console.log("Photo file:", formData.photo);
+        
         // Append all form fields
         Object.keys(formData).forEach(key => {
           if (key === 'photo' && formData[key]) {
+            console.log("✓ Appending photo to FormData:", formData[key].name, formData[key].size, "bytes");
             formDataToSend.append('photo', formData[key]);
           } else if (formData[key]) {
             formDataToSend.append(key, formData[key]);
           }
         });
+
+        // Log what's in FormData
+        console.log("FormData contents:");
+        for (let pair of formDataToSend.entries()) {
+          console.log(pair[0], ':', pair[1]);
+        }
 
         // Use PUT for updates, POST for new patients
         const method = patientId ? 'PUT' : 'POST';
@@ -196,13 +233,17 @@ const PatientDemographics = () => {
           ? `http://localhost:5000/api/patient-demographics/${patientId}`
           : "http://localhost:5000/api/patient-demographics";
 
+        console.log("Sending request:", method, url);
+
         const response = await fetch(url, {
           method,
-          body: formDataToSend // Don't set Content-Type header for FormData
+          body: formDataToSend
         });
 
+        const result = await response.json();
+        console.log("Response:", result);
+
         if (response.ok) {
-          const result = await response.json();
           if (!patientId) {
             localStorage.setItem('currentPatientId', result.data.id);
           }
@@ -210,17 +251,17 @@ const PatientDemographics = () => {
           alert(patientId ? "Patient demographics updated successfully!" : "Patient demographics saved successfully!");
           updatePreviewData(formData, "patient");
           setShowPreview(false);
-          // Reset form if needed...
+          
+          // Reload the page to fetch updated data including image
+          window.location.reload();
         } else {
-          const errorData = await response.json();
-          alert(errorData.message || "Failed to save patient demographics");
+          alert(result.message || "Failed to save patient demographics");
         }
       } catch (error) {
         console.error("Error saving data:", error);
         alert("Error saving data.");
       }
-    }
-  };
+    };
 
   // Upload handlers
   const handleUploadClick = () => {
@@ -228,10 +269,10 @@ const PatientDemographics = () => {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files && e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    // revoke old preview if blob
+    // Revoke old preview if blob
     if (imagePreview && imagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreview);
     }
@@ -357,7 +398,7 @@ const PatientDemographics = () => {
               Upload
             </button>
             {imagePreview && (
-              <button type="button" className="remove-btn" onClick={handleRemoveImage}>
+              <button type="button" className="upload-btn" onClick={handleRemoveImage}>
                 Remove
               </button>
             )}
@@ -528,75 +569,75 @@ const PatientDemographics = () => {
           </fieldset>
 
           {/* --- Other Details --- */}
-         <fieldset className="section">
-  <legend>Other Details</legend>
-  <div className="section-inner">
-    <div className="form-row">
-      <div className="input-group">
-        <label htmlFor="bloodGroup">Blood Group</label>
-        <select
-          id="bloodGroup"
-          name="bloodGroup"
-          value={formData.bloodGroup}
-          onChange={handleChange}
-        >
-          <option value="">Select Blood Group</option>
-          <option value="A+">A Positive (A⁺)</option>
-          <option value="A-">A Negative (A⁻)</option>
-          <option value="B+">B Positive (B⁺)</option>
-          <option value="B-">B Negative (B⁻)</option>
-          <option value="AB+">AB Positive (AB⁺)</option>
-          <option value="AB-">AB Negative (AB⁻)</option>
-          <option value="O+">O Positive (O⁺)</option>
-          <option value="O-">O Negative (O⁻)</option>
-          <option value="None">None</option>
-        </select>
-      </div>
+          <fieldset className="section">
+            <legend>Other Details</legend>
+            <div className="section-inner">
+              <div className="form-row">
+                <div className="input-group">
+                  <label htmlFor="bloodGroup">Blood Group</label>
+                  <select
+                    id="bloodGroup"
+                    name="bloodGroup"
+                    value={formData.bloodGroup}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Blood Group</option>
+                    <option value="A+">A Positive (A⁺)</option>
+                    <option value="A-">A Negative (A⁻)</option>
+                    <option value="B+">B Positive (B⁺)</option>
+                    <option value="B-">B Negative (B⁻)</option>
+                    <option value="AB+">AB Positive (AB⁺)</option>
+                    <option value="AB-">AB Negative (AB⁻)</option>
+                    <option value="O+">O Positive (O⁺)</option>
+                    <option value="O-">O Negative (O⁻)</option>
+                    <option value="None">None</option>
+                  </select>
+                </div>
 
-      <div className="input-group">
-        <label htmlFor="occupation">Occupation</label>
-        <select
-          id="occupation"
-          name="occupation"
-          value={formData.occupation}
-          onChange={handleChange}
-        >
-          <option value="">Select Occupation</option>
-          <option value="Unemployed">Unemployed</option>
-          <option value="Employed">Employed</option>
-          <option value="Student">Student</option>
-          <option value="Business">Business</option>
-          <option value="Services">Services</option>
-          <option value="Retired">Retired</option>
-          <option value="Government /civil service">Government / Civil Service</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-    </div>
+                <div className="input-group">
+                  <label htmlFor="occupation">Occupation</label>
+                  <select
+                    id="occupation"
+                    name="occupation"
+                    value={formData.occupation}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Occupation</option>
+                    <option value="Unemployed">Unemployed</option>
+                    <option value="Employed">Employed</option>
+                    <option value="Student">Student</option>
+                    <option value="Business">Business</option>
+                    <option value="Services">Services</option>
+                    <option value="Retired">Retired</option>
+                    <option value="Government /civil service">Government / Civil Service</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
 
-    <div className="form-row">
-      <div className="input-group">
-        <label htmlFor="aadharNumber">Aadhar Number</label>
-        <input
-          id="aadharNumber"
-          name="aadharNumber"
-          value={formData.aadharNumber}
-          onChange={handleChange}
-        />
-      </div>
+              <div className="form-row">
+                <div className="input-group">
+                  <label htmlFor="aadharNumber">Aadhar Number</label>
+                  <input
+                    id="aadharNumber"
+                    name="aadharNumber"
+                    value={formData.aadharNumber}
+                    onChange={handleChange}
+                  />
+                </div>
 
-      <div className="input-group">
-        <label htmlFor="panNumber">PAN Number</label>
-        <input
-          id="panNumber"
-          name="panNumber"
-          value={formData.panNumber}
-          onChange={handleChange}
-        />
-      </div>
-    </div>
-  </div>
-</fieldset>
+                <div className="input-group">
+                  <label htmlFor="panNumber">PAN Number</label>
+                  <input
+                    id="panNumber"
+                    name="panNumber"
+                    value={formData.panNumber}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </fieldset>
 
           <div className="form-actions-center">
             <button type="button" className="preview-btn" onClick={handlePreview}>
