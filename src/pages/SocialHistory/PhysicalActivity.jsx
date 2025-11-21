@@ -209,6 +209,7 @@ const PhysicalActivity = ({ onClose }) => {
           <option>Regular</option>
           <option>Occasional</option>
           <option>Irregular</option>
+          <option>Never</option>
         </select>
       </div>
 

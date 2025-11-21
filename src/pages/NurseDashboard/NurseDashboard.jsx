@@ -58,18 +58,11 @@ const NurseDashboard = () => {
       // Handle both array and object responses
       const visitsData = Array.isArray(visitsResult) ? visitsResult : (visitsResult.data || []);
       
-      // Sort visits by creation time (most recent first) and map data
+      // Sort visits by creation time (most recent first) and store full data
       const sortedVisits = visitsData
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 10) // Get last 10 visits
-        .map(visit => ({
-          id: visit._id,
-          patient_name: visit.patient_name || 'Unknown',
-          patient_id: visit.patient_id,
-          visit_type: visit.visit_type,
-          visitTime: visit.createdAt,
-          chief_complaints: visit.chief_complaints
-        }));
+        .slice(0, 10); // Get last 10 visits
+      
       setRecentVisits(sortedVisits);
 
       // Fetch upcoming appointments
@@ -97,15 +90,9 @@ const NurseDashboard = () => {
           );
           
           return {
-            id: appointment._id,
-            first_name: appointment.patient_name?.first || '',
-            last_name: appointment.patient_name?.last || '',
-            patient_id: appointment.patient_id,
-            time: appointment.appointment_time,
-            type: appointment.appointment_type,
+            ...appointment, // Keep all original data
             date: appointmentDate,
-            dateString: appointment.appointment_date,
-            reason: appointment.reason_for_appointment
+            dateString: appointment.appointment_date
           };
         })
         .filter(appointment => appointment.date >= today)
@@ -115,7 +102,7 @@ const NurseDashboard = () => {
             return a.date - b.date;
           }
           // If same date, sort by time
-          return a.time.localeCompare(b.time);
+          return a.appointment_time.localeCompare(b.appointment_time);
         })
         .slice(0, 10); // Get next 10 appointments
       
@@ -153,14 +140,26 @@ const NurseDashboard = () => {
     navigate(`/patient/${patientId}`);
   };
 
-  const handleViewVisit = (visitId) => {
-    console.log('Navigating to visit:', visitId);
-    navigate(`/visit/${visitId}`);
+  const handleViewVisit = (visit) => {
+    console.log('Opening visit for editing:', visit._id);
+    // Navigate to new-visit page with the visit data
+    navigate('/new-visit', { 
+      state: { 
+        visitData: visit,
+        isEditing: true 
+      } 
+    });
   };
 
-  const handleViewAppointment = (appointmentId) => {
-    console.log('Navigating to appointment:', appointmentId);
-    navigate(`/appointment/${appointmentId}`);
+  const handleViewAppointment = (appointment) => {
+    console.log('Opening appointment for editing:', appointment._id);
+    // Navigate to new-appointment page with the appointment data
+    navigate('/new-appointment', { 
+      state: { 
+        appointmentData: appointment,
+        isEditing: true 
+      } 
+    });
   };
 
   const handleViewFullSchedule = () => {
@@ -190,14 +189,15 @@ const NurseDashboard = () => {
   );
 
   const filteredVisits = recentVisits.filter(visit =>
-    visit.patient_name.toLowerCase().includes(visitsSearchTerm.toLowerCase())
+    visit.patient_name?.toLowerCase().includes(visitsSearchTerm.toLowerCase())
   );
 
-  const filteredAppointments = appointments.filter(appointment =>
-    `${appointment.first_name} ${appointment.last_name}`
-      .toLowerCase()
-      .includes(appointmentsSearchTerm.toLowerCase())
-  );
+  const filteredAppointments = appointments.filter(appointment => {
+    const firstName = appointment.patient_name?.first || '';
+    const lastName = appointment.patient_name?.last || '';
+    const fullName = `${firstName} ${lastName}`.toLowerCase();
+    return fullName.includes(appointmentsSearchTerm.toLowerCase());
+  });
 
   if (loading) {
     return (
@@ -266,7 +266,7 @@ const NurseDashboard = () => {
                         <span className="patient-name">
                           {patient.first_name} {patient.middle_name ? patient.middle_name + ' ' : ''}{patient.last_name}
                         </span>
-                        <span className="patient-id">ID: {patient.id.slice(-6)}</span>
+                        <span className="patient-id">Patient ID: {patient.id}</span>
                       </div>
                       <div className="patient-actions">
                         <button 
@@ -312,9 +312,9 @@ const NurseDashboard = () => {
                 <ul>
                   {filteredVisits.map((visit) => (
                     <li 
-                      key={visit.id} 
+                      key={visit._id} 
                       className="recent-patient-item"
-                      onClick={() => handleViewVisit(visit.id)}
+                      onClick={() => handleViewVisit(visit)}
                       style={{ cursor: 'pointer' }}
                     >
                       <div className="recent-patient-info">
@@ -325,7 +325,7 @@ const NurseDashboard = () => {
                           {visit.visit_type}
                         </span>
                         <span className="visit-time">
-                          {formatVisitTime(visit.visitTime)}
+                          {formatVisitTime(visit.createdAt)}
                         </span>
                       </div>
                       <div className="status-badge new">New</div>
@@ -365,25 +365,25 @@ const NurseDashboard = () => {
                 <ul>
                   {filteredAppointments.map((appointment) => (
                     <li 
-                      key={appointment.id} 
+                      key={appointment._id} 
                       className="appointment-item"
-                      onClick={() => handleViewAppointment(appointment.id)}
+                      onClick={() => handleViewAppointment(appointment)}
                       style={{ cursor: 'pointer' }}
                     >
                       <div className="appointment-time">
-                        <div>{appointment.time}</div>
+                        <div>{appointment.appointment_time}</div>
                         <div style={{ fontSize: '0.8em', color: '#666' }}>
                           {appointment.dateString}
                         </div>
                       </div>
                       <div className="appointment-info">
                         <span className="patient-name">
-                          {appointment.first_name} {appointment.last_name}
+                          {appointment.patient_name?.first} {appointment.patient_name?.last}
                         </span>
-                        <span className="appointment-type">{appointment.type}</span>
-                        {appointment.reason && (
+                        <span className="appointment-type">{appointment.appointment_type}</span>
+                        {appointment.reason_for_appointment && (
                           <span className="appointment-reason" style={{ fontSize: '0.85em', color: '#666' }}>
-                            {appointment.reason}
+                            {appointment.reason_for_appointment}
                           </span>
                         )}
                       </div>

@@ -22,8 +22,9 @@ const NewVisit = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [patients, setPatients] = useState([]);
+  const [visits, setVisits] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentVisitId, setCurrentVisitId] = useState(null);
   const [medications, setMedications] = useState([emptyMedRow()]);
   const [formData, setFormData] = useState({
     visitType: location.state?.visitType || 'Emergency Visit',
@@ -61,37 +62,85 @@ const NewVisit = () => {
     'Dr. Smith', 'Dr. Johnson', 'Dr. Williams', 'Dr. Brown', 'Dr. Davis'
   ];
 
-  // Fetch patients on component mount
+  // Fetch visits on component mount
   useEffect(() => {
-    fetchPatients();
+    fetchVisits();
   }, []);
 
-  const fetchPatients = async () => {
+  // Handle incoming visit data from dashboard
+  useEffect(() => {
+    if (location.state?.visitData && location.state?.isEditing) {
+      const visit = location.state.visitData;
+      loadVisitData(visit);
+    }
+  }, [location.state]);
+
+  const fetchVisits = async () => {
     try {
-      const response = await axios.get('/api/patients');
+      const response = await axios.get('/api/visits');
       if (response.data.success) {
-        setPatients(response.data.data);
+        setVisits(response.data.data || response.data);
+      } else if (Array.isArray(response.data)) {
+        setVisits(response.data);
       }
     } catch (error) {
-      console.error('Error fetching patients:', error);
-      // Fallback to default patient list if API fails
-      setPatients([
-        { _id: '1', full_name: 'Amelia Adams' },
-        { _id: '2', full_name: 'Brooke Bennett' },
-        { _id: '3', full_name: 'Chloe Carter' },
-        { _id: '4', full_name: 'Daniel Davis' },
-        { _id: '5', full_name: 'Emily Edwards' },
-        { _id: '6', full_name: 'Finley Fisher' },
-        { _id: '7', full_name: 'Grace Gardner' },
-        { _id: '8', full_name: 'Henry Hughes' },
-        { _id: '9', full_name: 'Isabella Irwin' },
-        { _id: '10', full_name: 'Sam John' }
-      ]);
+      console.error('Error fetching visits:', error);
+      setVisits([]);
     }
   };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Load visit data into form
+  const loadVisitData = (visit) => {
+    setCurrentVisitId(visit._id);
+    
+    // Load basic form data
+    setFormData({
+      visitType: visit.visit_type || 'Emergency Visit',
+      patientName: visit.patient_name || '',
+      chiefComplaints: visit.chief_complaints || '',
+      height: visit.vitals?.height || '',
+      weight: visit.vitals?.weight || '',
+      bloodPressure: visit.vitals?.blood_pressure || '',
+      pulse: visit.vitals?.pulse || '',
+      respiratoryRate: visit.vitals?.respiratory_rate || '',
+      oxygenSaturation: visit.vitals?.oxygen_saturation || '',
+      temperature: visit.vitals?.temperature || '',
+      notes: visit.notes || '',
+      investigationRequest: visit.investigation_request || '',
+      investigationResult: visit.investigation_result || '',
+      icdQuickest: visit.diagnosis?.icd10_quickest || '',
+      icdFull: visit.diagnosis?.full_icd10_list || '',
+      treatment: visit.treatment || '',
+      seenBy: visit.seen_by || 'Dr. Smith',
+      followUpDate: visit.appointment_date || '',
+      totalCost: visit.billing?.total_cost || '',
+      amountPaid: visit.billing?.amount_paid || '',
+      balanceAmount: visit.billing?.balance_amount || '',
+      status: visit.status || 'pending'
+    });
+
+    // Load medications
+    if (visit.medication_history && visit.medication_history.length > 0) {
+      const loadedMeds = visit.medication_history.map(med => ({
+        problem: med.problem || '',
+        medicine: med.medicine || '',
+        mg: med.dosage || '',
+        doseTime: med.dose_time || '',
+        frequency: med.frequency || '',
+        timePeriod: med.duration || '',
+        status: med.status === 'Active'
+      }));
+      setMedications(loadedMeds);
+    } else {
+      setMedications([emptyMedRow()]);
+    }
+
+    // Reset to first step
+    setCurrentStep(1);
   };
 
   // Medication handlers
@@ -117,7 +166,6 @@ const NewVisit = () => {
     setMedications((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
 
   const nextStep = () => {
-    // Only validate patient name before moving to next step
     if (currentStep === 1) {
       if (!formData.patientName) {
         alert('Please fill in Patient Name');
@@ -132,10 +180,43 @@ const NewVisit = () => {
   };
 
   const handleAddPatient = () => {
+    // Clear currentPatientId to ensure we're creating a new patient
+    localStorage.removeItem('currentPatientId');
     navigate('/dashboard/patient-demographics');
   };
 
-  // Check if form has minimal required data (only patient name)
+  const handleNewVisit = () => {
+    // Reset form for new visit
+    setCurrentVisitId(null);
+    setFormData({
+      visitType: 'Emergency Visit',
+      patientName: '',
+      chiefComplaints: '',
+      height: '',
+      weight: '',
+      bloodPressure: '',
+      pulse: '',
+      respiratoryRate: '',
+      oxygenSaturation: '',
+      temperature: '',
+      notes: '',
+      investigationRequest: '',
+      investigationResult: '',
+      icdQuickest: '',
+      icdFull: '',
+      treatment: '',
+      seenBy: 'Dr. Smith',
+      sendFollowUp: '',
+      followUpDate: '',
+      totalCost: '',
+      amountPaid: '',
+      balanceAmount: '',
+      status: 'pending'
+    });
+    setMedications([emptyMedRow()]);
+    setCurrentStep(1);
+  };
+
   const isFormMinimal = () => {
     return formData.patientName && 
            !formData.chiefComplaints &&
@@ -148,7 +229,6 @@ const NewVisit = () => {
   };
 
   const handleSubmit = async (status = 'saved') => {
-    // Validate patient name is filled
     if (!formData.patientName) {
       alert('Patient Name is required');
       return;
@@ -157,86 +237,76 @@ const NewVisit = () => {
     setLoading(true);
     
     try {
-      // Determine visit status based on form completeness
       let visitStatus = status === 'complete' ? 'complete' : 'saved';
       
-      // If form has only minimal data, mark as pending
       if (isFormMinimal() && status !== 'complete') {
         visitStatus = 'pending';
       }
 
-      // Prepare data for API
       const visitData = {
-        visitType: formData.visitType,
-        patientName: formData.patientName,
-        chiefComplaints: formData.chiefComplaints,
-        height: formData.height,
-        weight: formData.weight,
-        bloodPressure: formData.bloodPressure,
-        pulse: formData.pulse,
-        respiratoryRate: formData.respiratoryRate,
-        oxygenSaturation: formData.oxygenSaturation,
-        temperature: formData.temperature,
-        notes: formData.notes,
-        investigationRequest: formData.investigationRequest,
-        investigationResult: formData.investigationResult,
-        icdQuickest: formData.icdQuickest,
-        icdFull: formData.icdFull,
-        treatment: formData.treatment,
-        medications: medications.filter(m => 
-          m.problem?.trim() || m.medicine?.trim() || m.mg?.trim()
-        ),
-        seenBy: formData.seenBy,
-        followUpDate: formData.followUpDate,
-        totalCost: formData.totalCost,
-        amountPaid: formData.amountPaid,
-        balanceAmount: displayBalance || formData.balanceAmount,
+        visit_type: formData.visitType,
+        patient_name: formData.patientName,
+        chief_complaints: formData.chiefComplaints,
+        vitals: {
+          height: formData.height ? parseFloat(formData.height) : null,
+          weight: formData.weight ? parseFloat(formData.weight) : null,
+          blood_pressure: formData.bloodPressure || null,
+          pulse: formData.pulse ? parseInt(formData.pulse) : null,
+          respiratory_rate: formData.respiratoryRate ? parseInt(formData.respiratoryRate) : null,
+          oxygen_saturation: formData.oxygenSaturation ? parseFloat(formData.oxygenSaturation) : null,
+          temperature: formData.temperature ? parseFloat(formData.temperature) : null
+        },
+        notes: formData.notes || null,
+        investigation_request: formData.investigationRequest || null,
+        investigation_result: formData.investigationResult || null,
+        diagnosis: {
+          icd10_quickest: formData.icdQuickest || null,
+          full_icd10_list: formData.icdFull || null
+        },
+        treatment: formData.treatment || null,
+        medication_history: medications
+          .filter(m => m.problem?.trim() || m.medicine?.trim() || m.mg?.trim())
+          .map(m => ({
+            problem: m.problem || null,
+            medicine: m.medicine || null,
+            dosage: m.mg ? parseFloat(m.mg) : null,
+            dose_time: m.doseTime || null,
+            frequency: m.frequency || null,
+            duration: m.timePeriod || null,
+            status: m.status ? 'Active' : 'Inactive'
+          })),
+        seen_by: formData.seenBy || null,
+        appointment_date: formData.followUpDate || null,
+        billing: {
+          total_cost: formData.totalCost || null,
+          amount_paid: formData.amountPaid || null,
+          balance_amount: displayBalance || formData.balanceAmount || null
+        },
         status: visitStatus
       };
 
-      const response = await axios.post('/api/visits', visitData);
-
-      if (response.data.success) {
+      let response;
+      if (currentVisitId) {
+        // Update existing visit
+        response = await axios.put(`/api/visits/${currentVisitId}`, visitData);
+        alert('Visit updated successfully!');
+      } else {
+        // Create new visit
+        response = await axios.post('/api/visits', visitData);
         const statusMessage = visitStatus === 'pending' 
           ? 'saved as pending (incomplete information)' 
           : visitStatus === 'complete' 
             ? 'saved and marked complete' 
             : 'saved';
-        
         alert(`Visit ${statusMessage} successfully!`);
-        console.log('Visit created with ID:', response.data.visitId);
+      }
+
+      if (response.data.success) {
+        // Refresh visits list
+        fetchVisits();
         
-        // Reset form or navigate away
-        setFormData({
-          visitType: 'Emergency Visit',
-          patientName: '',
-          chiefComplaints: '',
-          height: '',
-          weight: '',
-          bloodPressure: '',
-          pulse: '',
-          respiratoryRate: '',
-          oxygenSaturation: '',
-          temperature: '',
-          notes: '',
-          investigationRequest: '',
-          investigationResult: '',
-          icdQuickest: '',
-          icdFull: '',
-          treatment: '',
-          seenBy: 'Dr. Smith',
-          sendFollowUp: '',
-          followUpDate: '',
-          totalCost: '',
-          amountPaid: '',
-          balanceAmount: '',
-          status: 'pending'
-        });
-        setMedications([emptyMedRow()]);
-        setCurrentStep(1);
-        
-        // Optionally navigate to visits list or dashboard
-        // navigate('/dashboard/visits');
+        // Reset form
+        handleNewVisit();
       }
     } catch (error) {
       console.error('Error saving visit:', error);
@@ -255,10 +325,27 @@ const NewVisit = () => {
 
   const displayBalance = formData.balanceAmount === '' ? computedBalance : formData.balanceAmount;
 
-  // Filter patients based on search term
-  const filteredPatients = patients.filter(patient => {
-    const name = patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
+  const formatVisitTime = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
+  // Filter visits based on search term
+  const filteredVisits = visits.filter(visit => {
+    const searchLower = searchTerm.toLowerCase();
+    const patientName = visit.patient_name?.toLowerCase() || '';
+    const visitId = visit._id?.slice(-6).toLowerCase() || '';
+    return patientName.includes(searchLower) || visitId.includes(searchLower);
   });
 
   return (
@@ -279,7 +366,7 @@ const NewVisit = () => {
           <div className="search-box">
             <input 
               type="text" 
-              placeholder="Search Patient" 
+              placeholder="Search Visits" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -287,18 +374,24 @@ const NewVisit = () => {
           </div>
 
           <div className="patient-list">
-            {filteredPatients.map((patient) => {
-              const name = patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
-              const initials = name.split(' ').map(n => n[0]).join('');
+            {filteredVisits.map((visit) => {
+              const initials = visit.patient_name?.split(' ').map(n => n[0]).join('') || 'NA';
               return (
                 <div
-                  key={patient._id}
+                  key={visit._id}
                   className="patient-item"
-                  onClick={() => handleInputChange('patientName', name)}
+                  onClick={() => loadVisitData(visit)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="patient-avatar">{initials}</div>
                   <div className="patient-details">
-                    <div className="patient-name">{name}</div>
+                    <div className="patient-name">{visit.patient_name}</div>
+                    <div style={{ fontSize: '0.85em', color: '#666' }}>
+                      ID: {visit._id?.slice(-6)}
+                    </div>
+                    <div style={{ fontSize: '0.8em', color: '#999' }}>
+                      {visit.createdAt ? formatVisitTime(visit.createdAt) : ''}
+                    </div>
                   </div>
                   <div className="patient-arrow">›</div>
                 </div>
@@ -308,7 +401,18 @@ const NewVisit = () => {
         </aside>
 
         <main className="main-content">
-          <h2 className="page-title">New Visit</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 className="page-title">{currentVisitId ? 'Edit Visit' : 'New Visit'}</h2>
+            {currentVisitId && (
+              <button 
+                className="btn-outline" 
+                onClick={handleNewVisit}
+                style={{ padding: '8px 16px' }}
+              >
+                + New Visit
+              </button>
+            )}
+          </div>
 
           {/* STEP 1 - PATIENT INFO & VITALS */}
           {currentStep === 1 && (
@@ -330,7 +434,7 @@ const NewVisit = () => {
                     type="text"
                     value={formData.patientName}
                     onChange={(e) => handleInputChange('patientName', e.target.value)}
-                    placeholder="Select from list or type name"
+                    placeholder="Enter patient name"
                     required
                   />
                 </div>
@@ -691,14 +795,14 @@ const NewVisit = () => {
                   onClick={() => handleSubmit('saved')}
                   disabled={loading}
                 >
-                  {loading ? 'Saving...' : 'Save'}
+                  {loading ? 'Saving...' : currentVisitId ? 'Update' : 'Save'}
                 </button>
                 <button 
                   className="btn-complete" 
                   onClick={() => handleSubmit('complete')}
                   disabled={loading}
                 >
-                  {loading ? 'Saving...' : 'Save as Complete'}
+                  {loading ? 'Saving...' : currentVisitId ? 'Update as Complete' : 'Save as Complete'}
                 </button>
               </div>
             </div>

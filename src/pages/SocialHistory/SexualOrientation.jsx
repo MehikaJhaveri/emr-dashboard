@@ -127,7 +127,6 @@ const SexualOrientation = ({ onClose }) => {
       <div className="sexual-orientation-panel">
         <div className="panel-header">
           <h3>Sexual Orientation</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
         </div>
         <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
       </div>
@@ -138,7 +137,6 @@ const SexualOrientation = ({ onClose }) => {
     <div className="sexual-orientation-panel">
       <div className="panel-header">
         <h3>Sexual Orientation</h3>
-        <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">

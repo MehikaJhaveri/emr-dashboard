@@ -10,10 +10,10 @@ const NewAppointment = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [selectedPatient, setSelectedPatient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [patients, setPatients] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [currentAppointmentId, setCurrentAppointmentId] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
     middleName: '',
@@ -29,14 +29,20 @@ const NewAppointment = () => {
     comments: ''
   });
 
-  // Fetch patients on component mount
+  // Fetch appointments on component mount
   useEffect(() => {
-    fetchPatients();
+    fetchAppointments();
   }, []);
 
-  // Prefill data if coming from PatientDetail
+  // Handle incoming data from navigation (either patientData or appointmentData)
   useEffect(() => {
-    if (location.state?.patientData) {
+    // Check if we have appointment data from dashboard (for editing)
+    if (location.state?.appointmentData && location.state?.isEditing) {
+      const appointment = location.state.appointmentData;
+      loadAppointmentData(appointment);
+    }
+    // Check if we have patient data from PatientDetail (for new appointment)
+    else if (location.state?.patientData) {
       const { patientData } = location.state;
       setFormData(prevData => ({
         ...prevData,
@@ -49,24 +55,84 @@ const NewAppointment = () => {
     }
   }, [location.state]);
 
-  const fetchPatients = async () => {
+  const fetchAppointments = async () => {
     try {
-      const response = await axios.get('/api/patients');
+      const response = await axios.get('/api/appointments');
       if (response.data.success) {
-        setPatients(response.data.data);
+        setAppointments(response.data.data || response.data);
+      } else if (Array.isArray(response.data)) {
+        setAppointments(response.data);
       }
     } catch (error) {
-      console.error('Error fetching patients:', error);
-      // Fallback to default patient list if API fails
-      setPatients([
-        { id: 1, first_name: 'Sarah', last_name: 'Johnson' },
-        { id: 2, first_name: 'Michael', last_name: 'Chen' },
-        { id: 3, first_name: 'Emma', last_name: 'Rodriguez' },
-        { id: 4, first_name: 'David', last_name: 'Williams' },
-        { id: 5, first_name: 'Sophia', last_name: 'Brown' },
-        { id: 6, first_name: 'James', last_name: 'Smith' },
-      ]);
+      console.error('Error fetching appointments:', error);
+      setAppointments([]);
     }
+  };
+
+  // Load appointment data into form
+  const loadAppointmentData = (appointment) => {
+    setCurrentAppointmentId(appointment._id);
+    
+    // Load appointment data into form
+    setFormData({
+      firstName: appointment.patient_name?.first || '',
+      middleName: appointment.patient_name?.middle || '',
+      lastName: appointment.patient_name?.last || '',
+      age: appointment.age || '',
+      contactInfo: appointment.contact_information || '',
+      date: formatDateForInput(appointment.appointment_date),
+      time: formatTimeForInput(appointment.appointment_time),
+      appointmentType: appointment.appointment_type || 'Follow-up',
+      reason: appointment.reason_for_appointment || 'Regular',
+      urgencyDropdown: appointment.urgency || 'No',
+      doctor: appointment.doctor || 'Dr. Ram Shah',
+      comments: appointment.comments || ''
+    });
+  };
+
+  // Format date from MM-DD-YYYY to YYYY-MM-DD for input field
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    const [month, day, year] = dateString.split('-');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
+
+  // Format time from "HH:MM AM/PM" to "HH:MM" (24-hour format) for input field
+  const formatTimeForInput = (timeString) => {
+    if (!timeString) return '';
+    try {
+      const [time, period] = timeString.split(' ');
+      let [hours, minutes] = time.split(':');
+      hours = parseInt(hours);
+      
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const handleNewAppointment = () => {
+    setCurrentAppointmentId(null);
+    setFormData({
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      age: '',
+      contactInfo: '',
+      date: '',
+      time: '',
+      appointmentType: 'Follow-up',
+      reason: 'Regular',
+      urgencyDropdown: 'No',
+      doctor: 'Dr. Ram Shah',
+      comments: ''
+    });
   };
 
   const handleDone = async () => {
@@ -107,63 +173,48 @@ const NewAppointment = () => {
         comments: formData.comments
       };
 
-      const response = await axios.post('/api/appointments', appointmentData);
+      let response;
+      if (currentAppointmentId) {
+        // Update existing appointment
+        response = await axios.put(`/api/appointments/${currentAppointmentId}`, appointmentData);
+        alert('Appointment updated successfully!');
+      } else {
+        // Create new appointment
+        response = await axios.post('/api/appointments', appointmentData);
+        alert('Appointment created successfully!');
+      }
 
       if (response.data.success) {
-        alert('Appointment created successfully!');
-        console.log('Appointment created with ID:', response.data.appointmentId);
+        console.log('Appointment ID:', response.data.appointmentId);
+        
+        // Refresh appointments list
+        fetchAppointments();
         
         // Reset form
-        setFormData({
-          firstName: '',
-          middleName: '',
-          lastName: '',
-          age: '',
-          contactInfo: '',
-          date: '',
-          time: '',
-          appointmentType: 'Follow-up',
-          reason: 'Regular',
-          urgencyDropdown: 'No',
-          doctor: 'Dr. Ram Shah',
-          comments: ''
-        });
-        setSelectedPatient(null);
+        handleNewAppointment();
       }
     } catch (error) {
-      console.error('Error creating appointment:', error);
-      alert(error.response?.data?.message || 'Error creating appointment. Please try again.');
+      console.error('Error saving appointment:', error);
+      alert(error.response?.data?.message || 'Error saving appointment. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddPatient = () => {
+    // Clear currentPatientId to ensure we're creating a new patient
+    localStorage.removeItem('currentPatientId');
     navigate('/dashboard/patient-demographics');
   };
 
-  const filteredPatients = patients.filter(patient => {
-    const name = patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredAppointments = appointments.filter(appointment => {
+    const searchLower = searchTerm.toLowerCase();
+    const firstName = appointment.patient_name?.first?.toLowerCase() || '';
+    const lastName = appointment.patient_name?.last?.toLowerCase() || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    const appointmentId = appointment._id?.slice(-6).toLowerCase() || '';
+    return fullName.includes(searchLower) || appointmentId.includes(searchLower);
   });
-
-  const handlePatientSelect = (patient) => {
-    setSelectedPatient(patient);
-    
-    // Handle different patient data structures
-    const firstName = patient.first_name || patient.full_name?.split(' ')[0] || '';
-    const lastName = patient.last_name || patient.full_name?.split(' ').slice(-1)[0] || '';
-    const middleName = patient.middle_name || '';
-    
-    setFormData({
-      ...formData,
-      firstName: firstName,
-      middleName: middleName,
-      lastName: lastName,
-      age: patient.age || '',
-      contactInfo: patient.contact_number || patient.phone || ''
-    });
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -173,18 +224,24 @@ const NewAppointment = () => {
     });
   };
 
+  const formatAppointmentDateTime = (dateString, timeString) => {
+    try {
+      return `${dateString} at ${timeString}`;
+    } catch (e) {
+      return 'Invalid date/time';
+    }
+  };
+
   return (
     <div className="medapp-container">
-      {/* Header */}
-      <div className="medapp-header">
-        <h2 className="medapp-title">New Appointment Form</h2>
-      </div>
+      {/* Header - Placeholder for spacing */}
+      <div className="medapp-header" />
 
       <div className="medapp-main-content">
-        {/* Left Panel - Patient Search */}
+        {/* Left Panel - Appointment Search */}
         <div className="medapp-left-panel">
           
-          {/* Add New Patient button here */}
+          {/* Add New Patient button */}
           <div className="medapp-add-patient-container">
             <Link to="/nurse-dashboard" className="nv-logo">
               <img src={logo} alt="Logo" className="nv-logo-image" />
@@ -197,7 +254,7 @@ const NewAppointment = () => {
           <div className="medapp-search-container">
             <input
               type="text"
-              placeholder="Search Patient"
+              placeholder="Search Appointment"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="medapp-search-input"
@@ -206,18 +263,29 @@ const NewAppointment = () => {
           </div>
           
           <div className="medapp-patient-list">
-            {filteredPatients.map((patient) => {
-              const name = patient.full_name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
-              const patientId = patient._id || patient.id;
+            {filteredAppointments.map((appointment) => {
+              const firstName = appointment.patient_name?.first || '';
+              const lastName = appointment.patient_name?.last || '';
+              const fullName = `${firstName} ${lastName}`.trim();
+              const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
               
               return (
                 <div
-                  key={patientId}
-                  className={`medapp-patient-item ${selectedPatient?._id === patientId || selectedPatient?.id === patientId ? 'medapp-selected' : ''}`}
-                  onClick={() => handlePatientSelect(patient)}
+                  key={appointment._id}
+                  className={`medapp-patient-item ${currentAppointmentId === appointment._id ? 'active' : ''}`}
+                  onClick={() => loadAppointmentData(appointment)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  <div className="medapp-patient-avatar"></div>
-                  <span className="medapp-patient-name">{name}</span>
+                  <div className="medapp-patient-avatar">{initials}</div>
+                  <div style={{ flex: 1 }}>
+                    <div className="medapp-patient-name">{fullName}</div>
+                    <div style={{ fontSize: '0.85em', color: '#666' }}>
+                      ID: {appointment._id?.slice(-6)}
+                    </div>
+                    <div style={{ fontSize: '0.8em', color: '#999' }}>
+                      {formatAppointmentDateTime(appointment.appointment_date, appointment.appointment_time)}
+                    </div>
+                  </div>
                   <span className="medapp-arrow">›</span>
                 </div>
               );
@@ -227,6 +295,19 @@ const NewAppointment = () => {
 
         {/* Right Panel - Appointment Form */}
         <div className="medapp-right-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 className="page-title">{currentAppointmentId ? 'Edit Appointment' : 'New Appointment'}</h2>
+            {currentAppointmentId && (
+              <button 
+                className="btn-outline" 
+                onClick={handleNewAppointment}
+                style={{ padding: '8px 16px' }}
+              >
+                + New Appointment
+              </button>
+            )}
+          </div>
+
           <div className="medapp-form-section">
             <h3 className="medapp-section-title">Patient Information</h3>
             
@@ -437,7 +518,7 @@ const NewAppointment = () => {
               onClick={handleDone}
               disabled={loading}
             >
-              {loading ? 'Submitting...' : 'Submit'}
+              {loading ? 'Submitting...' : currentAppointmentId ? 'Update' : 'Submit'}
             </button>
           </div>
         </div>

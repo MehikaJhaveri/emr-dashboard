@@ -407,7 +407,7 @@ family_history: {
       },
       consistency: {
         type: String,
-        enum: ['Regular', 'Occational', 'Irregular', 'Never']
+        enum: ['Regular', 'Occasional', 'Irregular', 'Never']
       },
       notes: { type: String }
     },

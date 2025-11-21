@@ -129,7 +129,6 @@ const FinancialResources = ({ onClose }) => {
       <div className="financial-resources-panel">
         <div className="panel-header">
           <h3>Financial Resources</h3>
-          <button className="close-btn" onClick={handleClose}>×</button>
         </div>
         <p>Loading...</p>
       </div>

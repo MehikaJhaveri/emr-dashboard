@@ -157,9 +157,6 @@ const Education = ({ onClose }) => {
         <button className="save-btn" onClick={handleSave}>
           Save Education Data
         </button>
-        <button className="cancel-btn" onClick={handleCancel}>
-          Cancel
-        </button>
       </div>
     </div>
   );
