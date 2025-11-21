@@ -32,6 +32,7 @@ const PatientDemographics = () => {
   const [isLoadingPostal, setIsLoadingPostal] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [patientId, setPatientId] = useState(null); // Added state for patient ID
 
   // Cleanup object URLs
   useEffect(() => {
@@ -45,11 +46,13 @@ const PatientDemographics = () => {
   // Load existing patient data from database
   useEffect(() => {
     const loadExistingData = async () => {
-      const patientId = localStorage.getItem("currentPatientId");
-      if (!patientId) return;
+      const storedPatientId = localStorage.getItem("currentPatientId");
+      if (!storedPatientId) return;
+
+      setPatientId(storedPatientId); // Store patient ID in state
 
       try {
-        const response = await fetch(`http://localhost:5000/api/patient-demographics/${patientId}`);
+        const response = await fetch(`http://localhost:5000/api/patient-demographics/${storedPatientId}`);
         if (!response.ok) return;
 
         const json = await response.json();
@@ -201,67 +204,68 @@ const PatientDemographics = () => {
     }
   };
 
-    const handleSave = async () => {
-      if (!validateForm()) return;
+  const handleSave = async () => {
+    if (!validateForm()) return;
 
-      try {
-        const patientId = localStorage.getItem('currentPatientId');
-        const formDataToSend = new FormData();
-        
-        console.log("=== FRONTEND SAVE ===");
-        console.log("Photo file:", formData.photo);
-        
-        // Append all form fields
-        Object.keys(formData).forEach(key => {
-          if (key === 'photo' && formData[key]) {
-            console.log("✓ Appending photo to FormData:", formData[key].name, formData[key].size, "bytes");
-            formDataToSend.append('photo', formData[key]);
-          } else if (formData[key]) {
-            formDataToSend.append(key, formData[key]);
-          }
-        });
-
-        // Log what's in FormData
-        console.log("FormData contents:");
-        for (let pair of formDataToSend.entries()) {
-          console.log(pair[0], ':', pair[1]);
+    try {
+      const currentPatientId = localStorage.getItem('currentPatientId');
+      const formDataToSend = new FormData();
+      
+      console.log("=== FRONTEND SAVE ===");
+      console.log("Photo file:", formData.photo);
+      
+      // Append all form fields
+      Object.keys(formData).forEach(key => {
+        if (key === 'photo' && formData[key]) {
+          console.log("✓ Appending photo to FormData:", formData[key].name, formData[key].size, "bytes");
+          formDataToSend.append('photo', formData[key]);
+        } else if (formData[key]) {
+          formDataToSend.append(key, formData[key]);
         }
+      });
 
-        // Use PUT for updates, POST for new patients
-        const method = patientId ? 'PUT' : 'POST';
-        const url = patientId 
-          ? `http://localhost:5000/api/patient-demographics/${patientId}`
-          : "http://localhost:5000/api/patient-demographics";
-
-        console.log("Sending request:", method, url);
-
-        const response = await fetch(url, {
-          method,
-          body: formDataToSend
-        });
-
-        const result = await response.json();
-        console.log("Response:", result);
-
-        if (response.ok) {
-          if (!patientId) {
-            localStorage.setItem('currentPatientId', result.data.id);
-          }
-
-          alert(patientId ? "Patient demographics updated successfully!" : "Patient demographics saved successfully!");
-          updatePreviewData(formData, "patient");
-          setShowPreview(false);
-          
-          // Reload the page to fetch updated data including image
-          window.location.reload();
-        } else {
-          alert(result.message || "Failed to save patient demographics");
-        }
-      } catch (error) {
-        console.error("Error saving data:", error);
-        alert("Error saving data.");
+      // Log what's in FormData
+      console.log("FormData contents:");
+      for (let pair of formDataToSend.entries()) {
+        console.log(pair[0], ':', pair[1]);
       }
-    };
+
+      // Use PUT for updates, POST for new patients
+      const method = currentPatientId ? 'PUT' : 'POST';
+      const url = currentPatientId 
+        ? `http://localhost:5000/api/patient-demographics/${currentPatientId}`
+        : "http://localhost:5000/api/patient-demographics";
+
+      console.log("Sending request:", method, url);
+
+      const response = await fetch(url, {
+        method,
+        body: formDataToSend
+      });
+
+      const result = await response.json();
+      console.log("Response:", result);
+
+      if (response.ok) {
+        if (!currentPatientId) {
+          localStorage.setItem('currentPatientId', result.data.id);
+          setPatientId(result.data.id); // Update state with new patient ID
+        }
+
+        alert(currentPatientId ? "Patient demographics updated successfully!" : "Patient demographics saved successfully!");
+        updatePreviewData(formData, "patient");
+        setShowPreview(false);
+        
+        // Reload the page to fetch updated data including image
+        window.location.reload();
+      } else {
+        alert(result.message || "Failed to save patient demographics");
+      }
+    } catch (error) {
+      console.error("Error saving data:", error);
+      alert("Error saving data.");
+    }
+  };
 
   // Upload handlers
   const handleUploadClick = () => {
@@ -294,6 +298,11 @@ const PatientDemographics = () => {
   // Format data for preview display
   const formatPreviewData = () => {
     return {
+      ...(patientId && {
+        "Patient Identification": {
+          "Patient ID": patientId
+        }
+      }),
       "Personal Information": {
         "Name": `${formData.firstName} ${formData.middleName} ${formData.lastName}`.trim(),
         "Date of Birth": formData.dob,
@@ -406,6 +415,19 @@ const PatientDemographics = () => {
         </div>
 
         <h2 className="patient-header">Patient Demographics</h2>
+
+        {/* Display Patient ID in form header if it exists */}
+        {patientId && (
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '20px', 
+            fontSize: '14px', 
+            color: '#666',
+            fontWeight: '500'
+          }}>
+            Patient ID: <strong>{patientId}</strong>
+          </div>
+        )}
 
         <form>
           {/* --- Personal Information --- */}

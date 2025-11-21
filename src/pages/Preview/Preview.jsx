@@ -355,7 +355,7 @@ export default function Preview() {
 
             return (
               <>
-                <div className="insurance-section">
+                <div>
                   <h4>Primary Insurance</h4>
                   {primaryCompanyName && <p><strong>Insurance Company Name:</strong> {primaryCompanyName}</p>}
                   {primaryPolicyNumber && <p><strong>Policy Number:</strong> {primaryPolicyNumber}</p>}
@@ -370,7 +370,7 @@ export default function Preview() {
                 </div>
 
                 {(secondaryCompanyName || secondaryPolicyNumber) && (
-                  <div className="insurance-section">
+                  <div>
                     <h4>Secondary Insurance</h4>
                     {secondaryCompanyName && <p><strong>Insurance Company Name:</strong> {secondaryCompanyName}</p>}
                     {secondaryPolicyNumber && <p><strong>Policy Number:</strong> {secondaryPolicyNumber}</p>}
@@ -385,7 +385,7 @@ export default function Preview() {
                   </div>
                 )}
 
-                <div className="insurance-section">
+                <div>
                   <h4>Contact Information</h4>
                   {contactNumber && <p><strong>Contact Number:</strong> {contactNumber}</p>}
                 </div>
@@ -403,7 +403,7 @@ export default function Preview() {
             <button onClick={handleEditAllergies} className="edit-button">Edit</button>
           </div>
           {allergiesData.map((allergy, index) => (
-            <div key={index} className="allergy-item">
+            <div key={index} >
               <h4>Allergy {index + 1}</h4>
               {allergy.allergen && <p><strong>Allergen:</strong> {allergy.allergen}</p>}
               {allergy.category && <p><strong>Category:</strong> {allergy.category}</p>}
@@ -427,10 +427,10 @@ export default function Preview() {
           
           {/* Family Members */}
           {familyHistoryData?.familyMembers?.length > 0 && (
-            <div className="family-member-section">
+            <div>
               <h4>Family Members</h4>
               {familyHistoryData.familyMembers.map((member, index) => (
-                <div key={index} className="family-member-item">
+                <div key={index}>
                   <h5>{member.firstName} {member.lastName}</h5>
                   <p><strong>Relationship:</strong> {member.relationship}</p>
                   {member.dob && <p><strong>Date of Birth:</strong> {member.dob}</p>}
@@ -447,10 +447,10 @@ export default function Preview() {
 
           {/* Genetic Conditions */}
           {familyHistoryData?.geneticConditions?.length > 0 && (
-            <div className="genetic-conditions-section">
+            <div>
               <h4>Genetic Conditions</h4>
               {familyHistoryData.geneticConditions.map((condition, index) => (
-                <div key={index} className="genetic-condition-item">
+                <div key={index}>
                   {condition.conditionName && <p><strong>Condition:</strong> {condition.conditionName}</p>}
                   {condition.affectedMember && <p><strong>Affected Family Member:</strong> {condition.affectedMember}</p>}
                   {condition.testResults && <p><strong>Test Results:</strong> {condition.testResults}</p>}
@@ -472,7 +472,7 @@ export default function Preview() {
           
           {/* Tobacco Smoking */}
           {socialHistoryData.tobaccoSmoking && (
-            <div className="social-subsection">
+            <div>
               <h4>Tobacco Smoking</h4>
               {socialHistoryData.tobaccoSmoking.current_status && <p><strong>Status:</strong> {socialHistoryData.tobaccoSmoking.current_status}</p>}
               {socialHistoryData.tobaccoSmoking.average_daily_consumption && <p><strong>Daily Consumption:</strong> {socialHistoryData.tobaccoSmoking.average_daily_consumption} cigarettes/day</p>}
@@ -484,7 +484,7 @@ export default function Preview() {
 
           {/* Alcohol Use */}
           {socialHistoryData.alcohol && (
-            <div className="social-subsection">
+            <div>
               <h4>Alcohol Use</h4>
               {socialHistoryData.alcohol.current_status && <p><strong>Status:</strong> {socialHistoryData.alcohol.current_status}</p>}
               {socialHistoryData.alcohol.average_weekly_consumption && <p><strong>Weekly Consumption:</strong> {socialHistoryData.alcohol.average_weekly_consumption} drinks/week</p>}
@@ -496,7 +496,7 @@ export default function Preview() {
 
           {/* Social Text */}
           {socialHistoryData.socialText?.notes && (
-            <div className="social-subsection">
+            <div>
               <h4>Additional Notes</h4>
               <p>{socialHistoryData.socialText.notes}</p>
             </div>
@@ -504,7 +504,7 @@ export default function Preview() {
 
           {/* Financial Resources */}
           {socialHistoryData.financial && (
-            <div className="social-subsection">
+            <div>
               <h4>Financial Resources</h4>
               {socialHistoryData.financial.income_level && <p><strong>Income Level:</strong> {socialHistoryData.financial.income_level}</p>}
               {socialHistoryData.financial.employment_status && <p><strong>Employment Status:</strong> {socialHistoryData.financial.employment_status}</p>}
@@ -515,7 +515,7 @@ export default function Preview() {
 
           {/* Education */}
           {socialHistoryData.education?.highest_level_of_education && (
-            <div className="social-subsection">
+            <div>
               <h4>Education</h4>
               <p><strong>Highest Level:</strong> {socialHistoryData.education.highest_level_of_education}</p>
               {socialHistoryData.education.notes && <p><strong>Notes:</strong> {socialHistoryData.education.notes}</p>}
@@ -524,7 +524,7 @@ export default function Preview() {
 
           {/* Physical Activity */}
           {socialHistoryData.physicalActivity && (
-            <div className="social-subsection">
+            <div>
               <h4>Physical Activity</h4>
               {socialHistoryData.physicalActivity.frequency && <p><strong>Frequency:</strong> {socialHistoryData.physicalActivity.frequency}</p>}
               {socialHistoryData.physicalActivity.type_of_exercise && <p><strong>Type:</strong> {socialHistoryData.physicalActivity.type_of_exercise}</p>}
@@ -536,7 +536,7 @@ export default function Preview() {
 
           {/* Stress */}
           {socialHistoryData.stress && (
-            <div className="social-subsection">
+            <div>
               <h4>Stress</h4>
               {socialHistoryData.stress.perceived_stress_level && <p><strong>Stress Level:</strong> {socialHistoryData.stress.perceived_stress_level}</p>}
               {socialHistoryData.stress.major_stressors && <p><strong>Major Stressors:</strong> {socialHistoryData.stress.major_stressors}</p>}
@@ -547,7 +547,7 @@ export default function Preview() {
 
           {/* Social Isolation */}
           {socialHistoryData.socialIsolation && (
-            <div className="social-subsection">
+            <div>
               <h4>Social Isolation & Connection</h4>
               {socialHistoryData.socialIsolation.isolation_status && <p><strong>Isolation Status:</strong> {socialHistoryData.socialIsolation.isolation_status}</p>}
               {socialHistoryData.socialIsolation.social_support && <p><strong>Social Support:</strong> {socialHistoryData.socialIsolation.social_support}</p>}
@@ -558,7 +558,7 @@ export default function Preview() {
 
           {/* Exposure to Violence */}
           {socialHistoryData.exposureToViolence && (
-            <div className="social-subsection">
+            <div>
               <h4>Exposure to Violence</h4>
               {socialHistoryData.exposureToViolence.type_of_violence && <p><strong>Type of Violence:</strong> {socialHistoryData.exposureToViolence.type_of_violence}</p>}
               {socialHistoryData.exposureToViolence.date_of_last_exposure && <p><strong>Last Exposure:</strong> {socialHistoryData.exposureToViolence.date_of_last_exposure}</p>}
@@ -569,7 +569,7 @@ export default function Preview() {
 
           {/* Gender Identity */}
           {socialHistoryData.genderIdentity?.gender_identity && (
-            <div className="social-subsection">
+            <div>
               <h4>Gender Identity</h4>
               <p><strong>Identity:</strong> {socialHistoryData.genderIdentity.gender_identity}</p>
               {socialHistoryData.genderIdentity.notes && <p><strong>Notes:</strong> {socialHistoryData.genderIdentity.notes}</p>}
@@ -578,7 +578,7 @@ export default function Preview() {
 
           {/* Sexual Orientation */}
           {socialHistoryData.sexualOrientation?.sexual_orientation && (
-            <div className="social-subsection">
+            <div>
               <h4>Sexual Orientation</h4>
               <p><strong>Orientation:</strong> {socialHistoryData.sexualOrientation.sexual_orientation}</p>
               {socialHistoryData.sexualOrientation.notes && <p><strong>Notes:</strong> {socialHistoryData.sexualOrientation.notes}</p>}
@@ -587,7 +587,7 @@ export default function Preview() {
 
           {/* Nutrients History */}
           {socialHistoryData.nutrients && (
-            <div className="social-subsection">
+            <div>
               <h4>Nutrients History</h4>
               {socialHistoryData.nutrients.dietary_preferences && <p><strong>Dietary Preferences:</strong> {socialHistoryData.nutrients.dietary_preferences}</p>}
               {socialHistoryData.nutrients.supplement_usage && <p><strong>Supplement Usage:</strong> {socialHistoryData.nutrients.supplement_usage}</p>}

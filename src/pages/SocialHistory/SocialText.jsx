@@ -132,7 +132,6 @@ const SocialText = ({ onClose }) => {
     <div className="social-text-panel slide-in">
       <div className="panel-header">
         <h3>Social History (Free Text)</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
       </div>
 
       <div className="form-group">

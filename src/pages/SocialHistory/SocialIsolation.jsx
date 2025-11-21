@@ -166,7 +166,6 @@ const SocialIsolation = ({ onClose }) => {
     <div className="social-panel">
       <div className="panel-header">
         <h3>Social Isolation & Connection</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
       </div>
 
       <div className="form-group">
@@ -236,13 +235,6 @@ const SocialIsolation = ({ onClose }) => {
           disabled={isSaving}
         >
           {isSaving ? "Saving..." : "Save Social Data"}
-        </button>
-        <button 
-          className="cancel-btn" 
-          onClick={handleCancel}
-          disabled={isSaving}
-        >
-          Cancel
         </button>
       </div>
     </div>

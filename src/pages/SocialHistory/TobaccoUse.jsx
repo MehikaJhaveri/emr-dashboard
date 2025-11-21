@@ -141,7 +141,6 @@ const TobaccoUse = ({ onClose }) => {
     <div className="tobacco-use-panel">
       <div className="panel-header">
         <h3>Tobacco Use (Smoking)</h3>
-        <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">

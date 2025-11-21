@@ -137,7 +137,6 @@ const GenderIdentity = ({ onClose }) => {
     <div className="gender-identity-panel">
       <div className="panel-header">
         <h3>Gender Identity</h3>
-        <button className="close-btn" onClick={onClose}>×</button>
       </div>
 
       <div className="form-group">

@@ -161,7 +161,6 @@ const NutrientsHistory = ({ onClose }) => {
     <div className="nutrients-panel">
       <div className="panel-header">
         <h3>Nutrients History</h3>
-        <button className="close-btn" onClick={handleClose}>×</button>
       </div>
 
       <div className="form-group">
@@ -207,13 +206,6 @@ const NutrientsHistory = ({ onClose }) => {
           disabled={isSaving}
         >
           {isSaving ? "Saving..." : "Save Nutrients Data"}
-        </button>
-        <button 
-          className="cancel-btn" 
-          onClick={handleCancel}
-          disabled={isSaving}
-        >
-          Cancel
         </button>
       </div>
     </div>
